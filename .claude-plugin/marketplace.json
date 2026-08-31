@@ -1,0 +1,11 @@
+{
+  "name": "agent-harness",
+  "owner": { "name": "Juan" },
+  "plugins": [
+    {
+      "name": "harness",
+      "source": "./plugins/harness",
+      "description": "Project-agnostic engine: plan/review/commit/pr/worktree skills, 16 generic agents, graph verification machinery"
+    }
+  ]
+}
