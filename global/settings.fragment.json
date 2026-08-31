@@ -1,0 +1,82 @@
+{
+  "permissions": {
+    "allow": [
+      "Skill(harness:commit)",
+      "Skill(harness:plan)",
+      "Skill(harness:pr)",
+      "Skill(harness:worktree)",
+      "Bash(git add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git stash:*)",
+      "Bash(git checkout:*)",
+      "Bash(git worktree:*)",
+      "Bash(git ls-tree:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh api:*)",
+      "Bash(gh run view:*)",
+      "Bash(npm test:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run lint:*)",
+      "Bash(npm run format:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm show:*)",
+      "Bash(npm info:*)",
+      "Bash(npm view:*)",
+      "Bash(npm audit:*)",
+      "Bash(npm install)",
+      "Bash(npm install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(./node_modules/.bin/tsc:*)",
+      "Bash(npx jest:*)",
+      "Bash(npx eslint:*)",
+      "Bash(npx prettier:*)",
+      "Bash(npx tsx:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm lint:*)",
+      "Bash(pnpm build:*)",
+      "Bash(pnpm audit:*)",
+      "Bash(yarn lint:*)",
+      "Bash(node:*)",
+      "Bash(python3:*)",
+      "Bash(grep:*)",
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(echo:*)",
+      "Bash(jq:*)",
+      "Bash(tee:*)",
+      "Bash(xargs:*)",
+      "Bash(curl:*)",
+      "Bash(docker ps:*)",
+      "Bash(claude update:*)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:www.npmjs.com)",
+      "TaskCreate",
+      "TaskUpdate",
+      "TaskGet",
+      "TaskList"
+    ],
+    "deny": [
+      "Bash(git commit --no-verify:*)",
+      "Bash(git commit * --no-verify:*)",
+      "Bash(git commit*--no-verify*)"
+    ]
+  },
+  "hooks": {
+    "Stop": [
+      { "hooks": [ { "type": "command", "command": "$HOME/.claude/hooks/notify-ready.sh" } ] }
+    ],
+    "Notification": [
+      { "hooks": [ { "type": "command", "command": "$HOME/.claude/hooks/notify-ready.sh" } ] }
+    ],
+    "UserPromptSubmit": [
+      { "hooks": [ { "type": "command", "command": "$HOME/.claude/hooks/clear-attention.sh" } ] }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "input=$(cat); name=$(echo \"$input\" | jq -r '.model.display_name'); dir=$(echo \"$input\" | jq -r '.workspace.current_dir'); base=$(basename \"$dir\"); branch=$(git --no-optional-locks -C \"$dir\" branch --show-current 2>/dev/null); used=$(echo \"$input\" | jq -r '.context_window.used_percentage // empty'); out=\"[$name] 📁 $base\"; [ -n \"$branch\" ] && out=\"$out 🌿 $branch\"; if [ -n \"$used\" ]; then pct=$(printf '%.0f' \"$used\"); out=\"$out | ${pct}% ctx\"; fi; echo \"$out\""
+  }
+}
