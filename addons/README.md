@@ -24,7 +24,8 @@ same as everything `scaffold/init.sh` stamps.
 - **Ticketing** (first): re-adds what the harness's ancestor had woven in -
   fetch ticket on /plan, ticket-ref in commit messages and PR titles,
   acceptance-criteria validation in review. One wrapper per tracker
-  (trello, jira, linear, github-issues), each shape (a).
+  (jira, linear, github-issues, and whichever tracker a project already
+  uses), each shape (a).
 
 An add-on may add MCP servers and permission grants; it must not patch,
 fork, or depend on the internals of engine skills - only on their names and
