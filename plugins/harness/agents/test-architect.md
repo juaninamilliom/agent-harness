@@ -210,15 +210,29 @@ explicitly, using the project's real vocabulary once you've read the code:
    domain-specific wallet or balance (trace every hop; do not assume it's direct)
 3. **Fee/Point Calculations** — every rate, tier, and rounding rule; verify fees
    or points are computed once and don't silently recompute on read
-4. **Settlement/Payout Math** — win/loss or in/out scenarios that must net to the
+4. **Stacking Composition** — when bonuses or multipliers can stack, test the
+   composition rule explicitly (multiplicative vs. additive); assuming the wrong
+   one is a classic money bug that inflates or deflates every stacked case
+5. **Settlement/Payout Math** — win/loss or in/out scenarios that must net to the
    same total money in vs money out; test the asymmetric edge cases, not just the
    happy path
-5. **Copy/Follow Mechanics** — if positions or actions can be mirrored, test the
+6. **Segregated-Account Isolation** — if the system splits funds into segregated
+   sub-accounts (e.g. by side, by purpose, by position), test that an operation on
+   one side cannot leak into or drain another, and that rebalancing between them
+   preserves the total
+7. **Copy/Follow Mechanics** — if positions or actions can be mirrored, test the
    proportional-sizing and desync cases
-6. **Time-Windowed Rules** — pending/vesting windows, clawback triggers, minimum
+8. **Approval-Gated Value Creation** — any path where a user's action creates
+   value rather than just moving it (a reward, a payout, a minted credit) needs a
+   test for the approval gate itself, plus any rate/day caps around it - a missing
+   or bypassable gate silently mints value
+9. **Time-Windowed Rules** — pending/vesting windows, clawback triggers, minimum
    balance or eligibility thresholds meant to deter abuse
-7. **Mock Strategy** — mock the external exchange/market adapter and any LLM
-   calls; never let a live external call decide a unit test's outcome
+10. **Privileged Collection Jobs** — a job that sweeps or collects funds into a
+    platform-owned account must write an audit-trail record; test that the record
+    is actually created, not just that the sweep succeeded
+11. **Mock Strategy** — mock the external exchange/market adapter and any LLM
+    calls; never let a live external call decide a unit test's outcome
 
 **For deep domain-specific test scenarios**, defer to any domain architects
 declared in the project CLAUDE.md routing table (invoke by the name that table

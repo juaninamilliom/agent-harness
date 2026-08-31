@@ -213,8 +213,14 @@ logger.info(`Auth with key: ${apiKey.slice(0, 8)}...`);
 - [ ] Funding authorization: the requesting user owns the funding request
 - [ ] Sensitive decision/strategy data not exposed to other users (privacy)
 - [ ] Fee/point calculations immutable after the position opens (no retroactive changes)
+- [ ] Values that scale money (multipliers, rates, bonus amounts) are writable only
+      through an admin-authorized path - no user-reachable route can set or
+      influence them directly
 - [ ] Copy/follow mechanics: mirrored positions match the original within bounds
 - [ ] Redemption/payout: verify ownership before paying out
+- [ ] Any path where a user's action creates value (a reward, a payout,
+      user-generated-content compensation) requires human approval before it takes
+      effect - no auto-approve route
 - [ ] Config snapshotted at run start to prevent mid-run manipulation
 - [ ] Rankings/leaderboards computed server-side (no client trust)
 - [ ] Balances cannot go negative via concurrent operations
