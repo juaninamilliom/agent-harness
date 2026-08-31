@@ -561,7 +561,7 @@ Expected: FAIL (install.sh doesn't exist yet).
 set -euo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 PRUNE=0
-[ "${1:-}" = "--prune" ] && { PRUNE=1; shift; }
+if [ "${1:-}" = "--prune" ]; then PRUNE=1; shift; fi
 TARGET="${1:-$HOME/.claude}"
 mkdir -p "$TARGET/hooks"
 SETTINGS="$TARGET/settings.json"
@@ -1031,7 +1031,7 @@ claude plugin install harness@agent-harness
 claude plugin list --enabled | grep harness
 ```
 Expected: validate passes; install succeeds at user scope; the list shows `harness@agent-harness`. (This is the desired end state on this machine, not just a probe — leave it installed. The local-path marketplace is fine here: this checkout IS the dev copy; other machines use the GitHub source that `scaffold/settings.json` ships.)
-Then: `claude -p "Invoke the harness:worktree skill and report only the worktree parent-directory convention it declares. Create nothing." --max-turns 3`
+Then: `claude -p "Invoke the harness:worktree skill and report only the worktree parent-directory convention it declares. Create nothing." --max-turns 3 --allowedTools "Skill"` (headless mode auto-denies unmatched permissions; without the grant the skill invocation is refused)
 Expected: the reply names `<repo-parent>/<repo>-worktrees/<name>`. If the skill fails to load, fix and re-run before committing.
 
 - [ ] **Step 3: Scaffold live check**
