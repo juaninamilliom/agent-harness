@@ -15,7 +15,7 @@
 - **Repo root:** `/Users/JuansMacbook/Workspace/agent-harness`. All paths below are relative to it unless absolute.
 - **Extraction source:** `/Users/JuansMacbook/Workspace/beep/.claude/` (the *installed* config). NEVER read from `~/Workspace/beep-claude-config` (stale). NEVER modify anything under `~/Workspace/beep/` or `~/Workspace/beep-claude-config/`.
 - **De-Beeping invariant:** after each port task, this grep over the task's files MUST return nothing:
-  `grep -rEin 'beep|justbeep|trello|solana|\bsui\b|@mysten|privy|turnkey|bluefin|hyperliquid|polymarket|dflow|kalshi|postman' <files...>`
+  `grep -rEin 'beep|justbeep|trello|solana|\bsui\b|@mysten|privy|turnkey|bluefin|hyperliquid|polymarket|\bdflow\b|kalshi|postman' <files...>`
   (word-boundary on `sui` so "suite"/"pursuit" don't false-positive).
 - **De-Beeping Rulebook** (applies to every ported file):
   1. **Tickets:** delete all Trello/ticket logic outright — frontmatter tool lines, argument hints, fetch steps, `[BEEP-XXX]` commit/PR title prefixes, `Trello: <url>` footers. Commit subject becomes a plain concise summary; PR title likewise. Ticketing returns later as an add-on (see `addons/README.md`).
@@ -291,7 +291,7 @@ Rulebook §1, §3, §5. Specifically:
 
 - [ ] **Step 8: Verify and commit**
 
-Run: `grep -rEin 'beep|justbeep|trello|solana|\bsui\b|@mysten|privy|turnkey|bluefin|hyperliquid|polymarket|dflow|kalshi|postman' plugins/harness/skills/`
+Run: `grep -rEin 'beep|justbeep|trello|solana|\bsui\b|@mysten|privy|turnkey|bluefin|hyperliquid|polymarket|\bdflow\b|kalshi|postman' plugins/harness/skills/`
 Expected: no output.
 Run: `grep -rn '\.claude/scripts\|\.claude/workflows' plugins/harness/skills/`
 Expected: no output (all references go through `<plugin-root>`).
@@ -1012,7 +1012,7 @@ run "shell syntax"         bash -c 'for f in $(find . -name "*.sh" -not -path ".
 run "plan-graph smoke"     node tests/plan-graph.smoke.mjs plugins/harness/workflows/plan-graph.js
 run "review-graph smoke"   node tests/review-graph.smoke.mjs plugins/harness/workflows/review-graph.js
 run "frozen rules"         plugins/harness/scripts/graph/check-frozen.sh plugins/harness
-run "de-beeped"            bash -c '! grep -rEinq "beep|justbeep|trello|solana|\bsui\b|@mysten|privy|turnkey|bluefin|hyperliquid|polymarket|dflow|kalshi|postman" plugins/ scaffold/ global/ codex/ addons/ README.md docs/philosophy.md docs/porting.md 2>/dev/null'
+run "de-beeped"            bash -c '! grep -rEinq "beep|justbeep|trello|solana|\bsui\b|@mysten|privy|turnkey|bluefin|hyperliquid|polymarket|\bdflow\b|kalshi|postman" plugins/ scaffold/ global/ codex/ addons/ README.md docs/philosophy.md docs/porting.md 2>/dev/null'
 run "global install test"  bash tests/test-global-install.sh
 run "init test"            bash tests/test-init.sh
 [ -f tests/test-codex-install.sh ] && run "codex install test" bash tests/test-codex-install.sh
