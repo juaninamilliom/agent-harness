@@ -15,7 +15,7 @@ sequential planning, negative on SWE-bench for every multi-agent variant). Plann
 both: the *investigation* — what is true about this codebase — is decomposable and is
 where `/harness:plan`'s specialists earned their keep; the *design* is sequential and belongs in
 one context. So the graph gathers and verifies facts in parallel, and one strong agent
-designs from them. Version 2 fanned out designers and lost twice; see `CHANGELOG.md` 1.8.0.
+designs from them. Version 2 fanned out designers and lost twice.
 
 It is a separate command on purpose. Nothing here changes `/harness:plan` or any architect file.
 Run the same task through both and compare.
@@ -70,7 +70,7 @@ Workflow({
 ```
 
 Optional: `investigatorModel` / `verifierModel` (default `sonnet`), `leadAgentType` /
-`synthAgentType` (default `code-architect`), `votesPerFinding` / `refutesToKill` (default
+`synthAgentType` (default `harness:code-architect`), `votesPerFinding` / `refutesToKill` (default
 1/1 — one anchored refuter; a vote of identical models is consensus, not evidence),
 `investigatorAgentTypes` (the read-only architects a brief may name; the workflow rejects
 anything else).
@@ -156,8 +156,12 @@ first, read the refuters' evidence, then widen.
 
 ## Failure signature
 
-Every refuter or investigator failing with `agent type 'claim-refuter' not found` (or
-`'plan-investigator'`) means the session's agent registry predates the install: agents
-added to a running session become visible on a later turn (skills hot-reload; agents lag).
-Re-run with the `resumeFromRunId` from the tool result — the lead and investigators
-replay from cache.
+Every refuter or investigator failing with `agent type 'harness:claim-refuter' not found`
+(or `'harness:plan-investigator'`) — **check first whether the name is missing or
+unqualified**: run `claude plugin list` and confirm the harness plugin is installed and
+the agent type matches exactly (in-plugin agents dispatch as `harness:<name>`, never
+bare — a plan consumer's session cannot resolve the bare form at all). Only once the name
+is confirmed correct does this mean the session's agent registry predates the install:
+agents added to a running session become visible on a later turn (skills hot-reload;
+agents lag). Re-run with the `resumeFromRunId` from the tool result — the lead and
+investigators replay from cache.

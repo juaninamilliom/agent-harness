@@ -1,6 +1,9 @@
 #!/bin/bash
 # Report drift between this repo's global layer and an installed ~/.claude.
 # Usage: doctor.sh [target-dir]   Exit 0 = healthy.
+# -e deliberately omitted: this is a diagnostic scan of independent checks, several of
+# which are EXPECTED to fail (a missing hook link, a stray agent) - a failing check must
+# accumulate into FAIL and let the rest still run, never abort the scan early.
 set -uo pipefail
 REPO="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-$HOME/.claude}"

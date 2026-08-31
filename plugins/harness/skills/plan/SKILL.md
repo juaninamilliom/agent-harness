@@ -78,7 +78,7 @@ For each detected domain, invoke the corresponding specialist agent to **define 
 
 **Frontend detected → Invoke frontend-architect:**
 ```
-Task(subagent_type="frontend-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:frontend-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the frontend architecture for this feature.
 
@@ -94,7 +94,7 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 
 **AI/LLM detected → Invoke ai-systems-architect:**
 ```
-Task(subagent_type="ai-systems-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:ai-systems-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the AI/LLM architecture for this feature.
 
@@ -110,7 +110,7 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 
 **Testing detected → Invoke test-architect:**
 ```
-Task(subagent_type="test-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:test-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the testing strategy for this feature.
 
@@ -126,7 +126,7 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 
 **Security detected → Invoke security-architect:**
 ```
-Task(subagent_type="security-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:security-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the security requirements and approach for this feature.
 
@@ -142,7 +142,7 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 
 **API detected → Invoke api-architect:**
 ```
-Task(subagent_type="api-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:api-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the API design for this feature.
 
@@ -158,7 +158,7 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 
 **Database detected → Invoke db-architect:**
 ```
-Task(subagent_type="db-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:db-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the database design for this feature.
 
@@ -174,7 +174,7 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 
 **Performance detected → Invoke performance-architect:**
 ```
-Task(subagent_type="performance-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:performance-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the performance optimization approach for this feature.
 
@@ -190,7 +190,7 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 
 **Documentation detected → Invoke docs-architect:**
 ```
-Task(subagent_type="docs-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:docs-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the documentation requirements for this feature.
 
@@ -206,7 +206,7 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 
 **Android detected → Invoke android-architect:**
 ```
-Task(subagent_type="android-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:android-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the Android architecture for this feature.
 
@@ -237,7 +237,7 @@ The code-architect's role is to **synthesize the collaborative plan** - taking s
 
 **When specialists were involved:**
 ```
-Task(subagent_type="code-architect", prompt="Synthesize a cohesive implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:code-architect", prompt="Synthesize a cohesive implementation plan for: [REQUIREMENTS].
 
 Acceptance Criteria:
 [CRITERIA]
@@ -264,7 +264,7 @@ Please provide:
 
 **When no specialists were involved:**
 ```
-Task(subagent_type="code-architect", prompt="Create a detailed implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:code-architect", prompt="Create a detailed implementation plan for: [REQUIREMENTS].
 
 Acceptance Criteria:
 [CRITERIA]

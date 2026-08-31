@@ -49,9 +49,14 @@ declared_branch() { # declared_branch <claude-md-path> - prints a branch name, o
   # (a backtick block under the heading), not the matched line itself - so pull a
   # few lines of context, not just the one line that matched.
   block=$(grep -im1 -A3 'integration branch' "$md") || return 0
-  name=$(printf '%s\n' "$block" | grep -oE '`[^`]+`' | head -1 | tr -d '`')
+  # Same-line colon-parse FIRST: a plain value on the matched line itself is
+  # unambiguous. Only fall back to scanning the wider 3-line window for a backtick
+  # block when the matched line carries no value of its own - otherwise a neighboring
+  # backticked line (e.g. an unrelated code sample two lines down) can shadow an
+  # already-filled plain value with the wrong branch name.
+  name=$(printf '%s\n' "$block" | grep -im1 'integration branch' | sed -E 's/.*[Ii]ntegration [Bb]ranch[^:]*:[[:space:]]*//' | sed -E 's/[^A-Za-z0-9_.\/-].*//')
   if [ -z "$name" ]; then
-    name=$(printf '%s\n' "$block" | grep -im1 'integration branch' | sed -E 's/.*[Ii]ntegration [Bb]ranch[^:]*:[[:space:]]*//' | sed -E 's/[^A-Za-z0-9_.\/-].*//')
+    name=$(printf '%s\n' "$block" | grep -oE '`[^`]+`' | head -1 | tr -d '`')
   fi
   printf '%s' "$name"
 }

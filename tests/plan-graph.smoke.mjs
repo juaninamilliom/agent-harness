@@ -46,9 +46,9 @@ const SYNTH = {
   plan: 'PLAN',
   phases: [
     { id: 'P1', title: 'schema', commit: 'c1', files: ['server/src/db/models/arena/TradeOrder.ts'], dependsOn: [], owner: 'db' },
-    { id: 'P2', title: 'primitives', commit: 'c2', files: [`${HL}/exchangeApp.service.ts`], dependsOn: ['P1'], owner: 'trading-arena' },                  // declared, no shared file -> unbacked
-    { id: 'P3', title: 'wire the cycle', commit: 'c3', files: [`${TA}/ai-trading.service.ts`, `${HL}/exchangeApp.service.ts`], dependsOn: ['P2'], owner: 'trading-arena' }, // declared AND shared
-    { id: 'P4', title: 'followers', commit: 'c4', files: ['server/src/services/trading/trading-copy-trading.service.ts', `./${TA}/ai-trading.service.ts`], dependsOn: [], owner: 'trading-arena' }, // shares a file with P3, no edge
+    { id: 'P2', title: 'primitives', commit: 'c2', files: [`${HL}/exchangeApp.service.ts`], dependsOn: ['P1'], owner: 'arena' },                  // declared, no shared file -> unbacked
+    { id: 'P3', title: 'wire the cycle', commit: 'c3', files: [`${TA}/ai-trading.service.ts`, `${HL}/exchangeApp.service.ts`], dependsOn: ['P2'], owner: 'arena' }, // declared AND shared
+    { id: 'P4', title: 'followers', commit: 'c4', files: ['server/src/services/trading/copy-trading.service.ts', `./${TA}/ai-trading.service.ts`], dependsOn: [], owner: 'arena' }, // shares a file with P3, no edge
     { id: 'P5', title: 'tests', commit: 'c5', files: ['x.test.ts'], dependsOn: ['P9'], owner: 'test' },                                                       // dangling
   ],
   decisions: [{ question: 'percent basis?', recommendation: 'price move' }],
@@ -85,14 +85,14 @@ console.log('run 1: full diamond')
   const { out, logs, calls } = await run(BASE, { verdict })
   logs.forEach((l) => console.log('   ', l))
   // lead validation
-  eq('agentType allowlist', out.briefs.map((b) => b.agentType), ['plan-investigator', 'plan-investigator', 'plan-investigator'])
+  eq('agentType allowlist', out.briefs.map((b) => b.agentType), ['harness:plan-investigator', 'harness:plan-investigator', 'harness:plan-investigator'])
   if (!logs.some((l) => l.includes('"treasury-architect" is not on the read-only allowlist'))) fail('non-read-only agentType must be logged and replaced')
   eq('overlap detected', out.overlaps.map((o) => [o.a, o.b]), [['B2', 'B3']])
   // tiering
-  const lead = calls.find((c) => c.label === 'lead'); eq('lead is strong', [lead.agentType, lead.model], ['code-architect', undefined])
-  const synth = calls.find((c) => c.label === 'synthesize'); eq('synthesizer is strong', [synth.agentType, synth.model], ['code-architect', undefined])
+  const lead = calls.find((c) => c.label === 'lead'); eq('lead is strong', [lead.agentType, lead.model], ['harness:code-architect', undefined])
+  const synth = calls.find((c) => c.label === 'synthesize'); eq('synthesizer is strong', [synth.agentType, synth.model], ['harness:code-architect', undefined])
   if (calls.filter((c) => c.label.startsWith('investigate:')).some((c) => c.model !== 'sonnet')) fail('investigators must run on sonnet by default')
-  if (calls.filter((c) => c.label.startsWith('verify:')).some((c) => c.agentType !== 'claim-refuter' || c.model !== 'sonnet')) fail('refuters must be claim-refuter on sonnet')
+  if (calls.filter((c) => c.label.startsWith('verify:')).some((c) => c.agentType !== 'harness:claim-refuter' || c.model !== 'sonnet')) fail('refuters must be harness:claim-refuter on sonnet')
   // reduce
   eq('raw -> distinct', [out.counts.findingsRaw, out.counts.findings, out.counts.agreed], [7, 6, 1])
   const f1 = out.findings.find((f) => f.id === 'F1')
@@ -123,7 +123,7 @@ console.log('run 2: dead investigator + dead verify layer')
   const { out, logs } = await run(BASE, { inv: { ...INV, B3: undefined }, deadVerify: true })
   if (!out.partial) fail('partial must be true')
   if (!logs.some((l) => l.includes('1 of 3 investigators returned nothing (B3)'))) fail('fan-in guard must name the dead investigator')
-  if (!logs.some((l) => l.includes('the verify layer is dead - 0 of 4 refuters returned') && l.includes("agent type 'claim-refuter' not found") && l.includes('resumeFromRunId'))) fail('dead verify layer must be named once with cause and recovery: ' + logs.filter((l) => l.startsWith('WARNING')).join(' | '))
+  if (!logs.some((l) => l.includes('the verify layer is dead - 0 of 4 refuters returned') && l.includes("agent type 'harness:claim-refuter' not found") && l.includes('resumeFromRunId'))) fail('dead verify layer must be named once with cause and recovery: ' + logs.filter((l) => l.startsWith('WARNING')).join(' | '))
   eq('all verified findings unverified, none killed', [out.counts.confirmed, out.counts.refuted, out.counts.unverified, out.counts.pastCap], [0, 0, 4, 2])
   if (logs.some((l) => l.includes('do not reconcile'))) fail('reconcile must hold with a dead verify layer')
 }

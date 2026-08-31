@@ -25,7 +25,8 @@ repository: __PROJECT_NAME__.
 - Simple config value changes
 - Test additions that don't change implementation
 
-**How:** Run the /plan protocol - it walks the council for the domains the task touches.
+**How:** Run the plan protocol (`/prompts:plan`, or the `harness-plan` skill) - it walks
+the council for the domains the task touches.
 
 **VIOLATION**: Proceeding with major work without architect consultation
 breaks project requirements.
@@ -33,7 +34,7 @@ breaks project requirements.
 ### Architect Council
 
 Codex has no subagent tool, so there is no one to hand these off to - the
-/plan protocol has you write each consultation yourself, in order, inside
+plan protocol has you write each consultation yourself, in order, inside
 the same context: risks, files to touch, the approach that architect would
 insist on.
 

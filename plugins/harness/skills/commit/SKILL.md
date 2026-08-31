@@ -141,11 +141,11 @@ Invoke **all three agents in a single message** with multiple Task calls (parall
 ```
 // Send ALL THREE in one message for parallel execution:
 
-Task(subagent_type="build-validator", prompt="Validate that the project builds successfully. Run build commands for any components with changes. Report build status.")
+Task(subagent_type="harness:build-validator", prompt="Validate that the project's declared type checks pass. Run the type check command for any components with changes (e.g. `npx tsc --noEmit`) - never `npm run build`. Report status.")
 
-Task(subagent_type="code-simplifier", prompt="Review the staged/modified code for complexity. Identify opportunities to simplify: long functions, deep nesting, duplication, overly complex logic. Focus on changes only, not entire files.")
+Task(subagent_type="harness:code-simplifier", prompt="Review the staged/modified code for complexity. Identify opportunities to simplify: long functions, deep nesting, duplication, overly complex logic. Focus on changes only, not entire files.")
 
-Task(subagent_type="pr-review", prompt="Review the staged changes for code quality. Check: security issues, code smells, best practices, documentation. [PLAN_CONTEXT if phase selected in Step 2]. Output your findings in the standard review format.")
+Task(subagent_type="harness:pr-review", prompt="Review the staged changes for code quality. Check: security issues, code smells, best practices, documentation. [PLAN_CONTEXT if phase selected in Step 2]. Output your findings in the standard review format.")
 ```
 
 ### 4b: Evaluate Results (Build First)
@@ -171,7 +171,7 @@ in parallel.
 
 ```
 // one Task per finding, ALL in one message:
-Task(subagent_type="finding-refuter", prompt="Finding to refute:\n**Location**: <file:line>\n**Claim**: <the claim>\n**Proposed fix**: <the fix>")
+Task(subagent_type="harness:finding-refuter", prompt="Finding to refute:\n**Location**: <file:line>\n**Claim**: <the claim>\n**Proposed fix**: <the fix>")
 ```
 
 **Each refuter gets the finding only.** Do not pass the producing agent's

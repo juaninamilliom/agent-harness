@@ -40,9 +40,13 @@ PY
 
 # Marketplace registration: the CLI writes the canonical settings shape, so use it
 # for the real config; sandbox targets (tests) skip it.
-if [ "$TARGET" = "$HOME/.claude" ] && command -v claude >/dev/null 2>&1; then
-  claude plugin marketplace add "$REPO" || true   # no-op/err if already known
-  claude plugin install harness@agent-harness || true
+if [ "$TARGET" = "$HOME/.claude" ]; then
+  if command -v claude >/dev/null 2>&1; then
+    claude plugin marketplace add "$REPO" || true   # no-op/err if already known
+    claude plugin install harness@agent-harness || true
+  else
+    echo "claude CLI not found - marketplace registration skipped; install the CLI and re-run"
+  fi
 else
   echo "sandbox target: skipped marketplace registration (CLI writes real config only)"
 fi

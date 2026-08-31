@@ -18,8 +18,8 @@ lenses; two of them — `silent-failure` and `tests` — default to agents from 
 gracefully (a `WARNING: ... lenses returned nothing` is logged and the result is marked
 `partial`, never blocked). Pass `args.lensAgentTypes` on the `Workflow` call to
 substitute in-plugin agents instead, e.g.
-`{ 'silent-failure': 'pr-review', tests: 'test-architect' }` — unlisted lens keys keep
-their default.
+`{ 'silent-failure': 'harness:pr-review', tests: 'harness:test-architect' }` — unlisted
+lens keys keep their default.
 
 ## Quickstart
 

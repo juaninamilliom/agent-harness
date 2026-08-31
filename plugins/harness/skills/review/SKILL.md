@@ -103,7 +103,6 @@ Workflow({
     branch: "<branch>",
     workingDir: "/abs/path/to/the/checkout",   // REQUIRED when reviewing a worktree
     changedFiles: ["path/one.ts"],             // from `git diff --name-only`; real JSON array, never a string
-    harnessRoot: "${CLAUDE_PLUGIN_ROOT}",      // the workflow gives skeptics the check-quote script path from it
     maxAgents: 15
   }
 })
@@ -156,9 +155,12 @@ list or review that finding by hand. If it is not, a lens ignored its brief — 
 **If `partial` is true, say so first.** It has two independent causes, so name which:
 
 A third cause shows up as `the verify layer is dead` in the log with every skeptic
-failing on `agent type 'finding-refuter' not found`: the session started before the
-agent was installed. The registry refreshes on a later turn; re-run with the
-`resumeFromRunId` from the tool result and the lenses replay from cache.
+failing on `agent type 'harness:finding-refuter' not found`. Check first whether the
+name is missing or unqualified (`claude plugin list`) - this plugin's own agents only
+resolve as `harness:<name>`, never bare. Only once that is confirmed correct does it
+mean the session started before the agent was installed: the registry refreshes on a
+later turn; re-run with the `resumeFromRunId` from the tool result and the lenses
+replay from cache.
 
 | Cause | Where | Meaning |
 |---|---|---|

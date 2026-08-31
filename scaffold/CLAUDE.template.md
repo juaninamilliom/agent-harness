@@ -34,18 +34,24 @@ breaks project requirements.
 
 ### Architect Routing Table
 
+The ten generic architects below ship with the `harness` plugin, so the Task tool must
+dispatch them by their `harness:`-qualified name - a bare name resolves only inside the
+plugin's own repo, never for a plugin consumer. Rows you add below (project-created
+domain architects, living in this project's own `.claude/agents/`) stay bare - only
+plugin-shipped agents need the prefix.
+
 | Agent | Domain | Triggers |
 |-------|--------|----------|
-| `code-architect` | General | **DEFAULT** - use when unsure |
-| `frontend-architect` | UI/React/CSS | components, hooks, styling, `*.tsx` |
-| `api-architect` | REST/API design | endpoints, request/response shapes, routes |
-| `db-architect` | Database | models, schema, migrations, SQL |
-| `security-architect` | Auth/security | auth, encryption, OWASP, secrets |
-| `test-architect` | Testing | tests, coverage, mocks, `*.test.*` |
-| `performance-architect` | Performance | optimization, cache, bundle, slow |
-| `docs-architect` | Documentation | docs, README, JSDoc, guides |
-| `ai-systems-architect` | AI/LLM/MCP | agents, prompts, MCP, `.claude/` |
-| `android-architect` | Android/Kotlin | `*.kt`, Android Studio, Gradle |
+| `harness:code-architect` | General | **DEFAULT** - use when unsure |
+| `harness:frontend-architect` | UI/React/CSS | components, hooks, styling, `*.tsx` |
+| `harness:api-architect` | REST/API design | endpoints, request/response shapes, routes |
+| `harness:db-architect` | Database | models, schema, migrations, SQL |
+| `harness:security-architect` | Auth/security | auth, encryption, OWASP, secrets |
+| `harness:test-architect` | Testing | tests, coverage, mocks, `*.test.*` |
+| `harness:performance-architect` | Performance | optimization, cache, bundle, slow |
+| `harness:docs-architect` | Documentation | docs, README, JSDoc, guides |
+| `harness:ai-systems-architect` | AI/LLM/MCP | agents, prompts, MCP, `.claude/` |
+| `harness:android-architect` | Android/Kotlin | `*.kt`, Android Studio, Gradle |
 <!-- FILL: add one row per domain architect you create from
      .claude/agents/_domain-architect.template.md, e.g.:
 | `billing-architect` | Payments/billing | invoices, subscriptions, src/billing/** | -->

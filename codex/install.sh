@@ -79,6 +79,10 @@ echo "skills installed: $skills_installed (at $SKILLS_HOME)"
 if [ -s "$TARGET/AGENTS.md" ] && ! grep -q "Read the code first" "$TARGET/AGENTS.md"; then
   echo "existing AGENTS.md kept - merge $REPO/codex/AGENTS.global.md by hand"
 else
+  if [ -s "$TARGET/AGENTS.md" ]; then
+    cp "$TARGET/AGENTS.md" "$TARGET/AGENTS.md.bak"
+    echo "existing AGENTS.md backed up to AGENTS.md.bak before overwrite"
+  fi
   cp "$REPO/codex/AGENTS.global.md" "$TARGET/AGENTS.md"
   echo "AGENTS.md installed"
 fi

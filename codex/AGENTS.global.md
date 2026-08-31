@@ -3,8 +3,8 @@
 ## Discipline (the harness, single-context form)
 - Read the code first. Every load-bearing claim carries file:line and a
   verbatim quote you re-checked with a command this session.
-- Non-trivial work: run the /plan protocol before editing. Bug reports and
-  questions get findings, not unrequested fixes.
+- Non-trivial work: run the plan protocol (`/prompts:plan`, or the `harness-plan`
+  skill) before editing. Bug reports and questions get findings, not unrequested fixes.
 - Before any commit: run the /commit protocol (type check hard-blocks;
   review criticals block).
 - Type-check, never build, during development (`npx tsc --noEmit` or the

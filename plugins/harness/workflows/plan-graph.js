@@ -170,18 +170,21 @@ if (REFUTES_TO_KILL > VOTES) throw new Error(`refutesToKill=${REFUTES_TO_KILL} c
 // source agrees on and the one v2 had backwards.
 const investigatorModel = (args && args.investigatorModel) || 'sonnet'
 const verifierModel = (args && args.verifierModel) || 'sonnet'
-const leadAgentType = (args && args.leadAgentType) || 'code-architect'
-const synthAgentType = (args && args.synthAgentType) || 'code-architect'
-const DEFAULT_INVESTIGATOR = 'plan-investigator'
-const REFUTER = 'claim-refuter'
+const leadAgentType = (args && args.leadAgentType) || 'harness:code-architect'
+const synthAgentType = (args && args.synthAgentType) || 'harness:code-architect'
+const DEFAULT_INVESTIGATOR = 'harness:plan-investigator'
+const REFUTER = 'harness:claim-refuter'
 // Architects an investigator may run as. Read-only tool sets only: an investigator must
 // not be able to edit, build, or run tests. frontend-architect declares "All tools",
 // test-/performance-architect can run npm - excluded. The default is the generic
-// architects this plugin ships; pass investigatorAgentTypes to add any domain
-// architects declared in the project CLAUDE.md routing table.
+// architects this plugin ships (harness:-qualified - the plugin's own registry entry,
+// not the bare name, is what a plugin consumer's session can actually resolve); pass
+// investigatorAgentTypes to add any domain architects declared in the project CLAUDE.md
+// routing table (those are typically bare - project-created agents live in the
+// project's own .claude/agents/ and resolve without a namespace prefix).
 const READ_ONLY_ARCHITECTS = (args && Array.isArray(args.investigatorAgentTypes) && args.investigatorAgentTypes.length)
   ? args.investigatorAgentTypes
-  : ['api-architect', 'security-architect', 'db-architect', 'docs-architect', 'code-architect', 'ai-systems-architect']
+  : ['harness:api-architect', 'harness:security-architect', 'harness:db-architect', 'harness:docs-architect', 'harness:code-architect', 'harness:ai-systems-architect']
 
 const WHERE = workingDir
   ? `WORKING DIRECTORY - THIS IS NOT OPTIONAL\n` +

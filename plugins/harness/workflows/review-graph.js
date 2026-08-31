@@ -77,20 +77,20 @@ blockchain, or similar axis) which one is primary and which is legacy.
 // this file. Keyed by lens key; a key with no entry keeps its default below.
 // Two of the five defaults ('silent-failure', 'tests') run agents from the separate
 // pr-review-toolkit plugin (see README.md) - if that plugin is not installed, pass
-// e.g. { 'silent-failure': 'pr-review', tests: 'test-architect' } to run in-plugin
-// agents in their place instead.
+// e.g. { 'silent-failure': 'harness:pr-review', tests: 'harness:test-architect' } to
+// run in-plugin agents in their place instead.
 const LENS_AGENT_TYPES = (args && args.lensAgentTypes && typeof args.lensAgentTypes === 'object' && !Array.isArray(args.lensAgentTypes)) ? args.lensAgentTypes : {}
 const lensAgent = (key, dflt) => (Object.prototype.hasOwnProperty.call(LENS_AGENT_TYPES, key) ? LENS_AGENT_TYPES[key] : dflt)
 
 const LENSES = [
   {
     key: 'general',
-    agentType: lensAgent('general', 'pr-review'),
+    agentType: lensAgent('general', 'harness:pr-review'),
     prompt: 'Review this diff as a senior engineer: correctness, security, error handling, code smells.',
   },
   {
     key: 'conventions',
-    agentType: lensAgent('conventions', 'code-architect'),
+    agentType: lensAgent('conventions', 'harness:code-architect'),
     prompt:
       'Check this diff against this repo\'s conventions: read the project CLAUDE.md for anything it ' +
       'declares, then compare against the patterns already established in the surrounding code the ' +
@@ -98,7 +98,7 @@ const LENSES = [
   },
   {
     key: 'security',
-    agentType: lensAgent('security', 'security-architect'),
+    agentType: lensAgent('security', 'harness:security-architect'),
     prompt: 'Review this diff for auth bypass, secrets exposure, injection, and money-path authorization gaps.',
   },
   {
@@ -300,7 +300,7 @@ const judged = await parallel(
             `YOUR QUESTION\n${s.question}\n\n${WHERE}\n\n${ANCHORS}\n\n` +
             'You have NOT seen the reasoning that produced this finding. Do not ask for it. ' +
             'Judge the claim against the code.',
-          { label: `verify:${s.key}:${f.file}:${f.line}`, phase: 'Verify', agentType: 'finding-refuter', schema: VERDICT_SCHEMA }
+          { label: `verify:${s.key}:${f.file}:${f.line}`, phase: 'Verify', agentType: 'harness:finding-refuter', schema: VERDICT_SCHEMA }
         )
       )
     ).then((votes) => {
@@ -335,7 +335,7 @@ if (settled.length < toVerify.length) {
   log(`WARNING: ${toVerify.length - settled.length} finding(s) lost their whole verify node - counts will not reconcile`)
 }
 if (toVerify.length && settled.every((f) => f.voters === 0)) {
-  log(`WARNING: the verify layer is dead - 0 of ${toVerify.length * SKEPTICS.length} skeptics returned. If the failures say "agent type 'finding-refuter' not found", this session's agent registry predates the install: it refreshes on a later turn, so re-run with resumeFromRunId and the lenses replay from cache.`)
+  log(`WARNING: the verify layer is dead - 0 of ${toVerify.length * SKEPTICS.length} skeptics returned. If the failures say "agent type '...' not found", check FIRST whether that name is missing or unqualified - run \`claude plugin list\` and confirm it matches an installed agent exactly (this plugin's own agents dispatch as 'harness:finding-refuter', never bare). Only if the name is already correct does this mean the session's agent registry predates the install: it refreshes on a later turn, so re-run with resumeFromRunId and the lenses replay from cache.`)
 }
 const verified = settled.filter((f) => f.survived)
 const undecidedFindings = settled.filter((f) => f.undecided)
