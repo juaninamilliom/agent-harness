@@ -19,7 +19,7 @@ worktree.
 Parse `$ARGUMENTS`:
 - `$0` **repo-dir** (required): the repository's directory name under `<repo-parent>`
 - `$1` **name** (required): short directory name, e.g. `jest-flake`
-- `$2` **base-branch** (optional): defaults to the project's integration branch (see the `pr` skill for how it's determined)
+- `$2` **base-branch** (optional): defaults to the project's integration branch (see `/harness:pr` for how it's determined)
 
 Ask if either required argument is missing.
 
@@ -101,5 +101,5 @@ Report the path, the branch, its base, and whether you installed dependencies.
   fail to commit. `--no-verify` is not an approved workaround.
 - If `<repo-parent>` itself is not a git repo, every git command must run inside the
   specific repo directory, not the parent.
-- Clean up with `/worktree-remove` - never `rm -rf` a worktree directory, which leaves
+- Clean up with `/harness:worktree-remove` - never `rm -rf` a worktree directory, which leaves
   a stale entry in `git worktree list`.

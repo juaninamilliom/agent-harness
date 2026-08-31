@@ -1,23 +1,23 @@
 ---
-description: Graph plan. A strong lead partitions the codebase questions into 2-5 briefs; cheap read-only investigators return findings anchored on verbatim quotes; code dedupes, ranks and caps; one fresh refuter per finding checks the quote with the shell; one strong agent designs the plan; code checks its phases for fake edges. For work whose facts span several subsystems. /plan is the control.
+description: Graph plan. A strong lead partitions the codebase questions into 2-5 briefs; cheap read-only investigators return findings anchored on verbatim quotes; code dedupes, ranks and caps; one fresh refuter per finding checks the quote with the shell; one strong agent designs the plan; code checks its phases for fake edges. For work whose facts span several subsystems. /harness:plan is the control.
 allowed-tools: Workflow, Read, Grep, Glob, Bash(git:*), AskUserQuestion, TaskCreate, TaskList, TaskUpdate
 argument-hint: [description]
 ---
 
 # Plan Graph
 
-`/plan` is the control: specialists in prose, synthesized by `code-architect`. This is the
+`/harness:plan` is the control: specialists in prose, synthesized by `code-architect`. This is the
 experiment, rebuilt on what the evidence says a graph is for.
 
 **Graph the investigation. Design once.** A graph buys breadth on decomposable work and
 loses on sequential work (Kim et al. 2025: +80% on decomposable analysis, −40 to −70% on
 sequential planning, negative on SWE-bench for every multi-agent variant). Planning is
 both: the *investigation* — what is true about this codebase — is decomposable and is
-where `/plan`'s specialists earned their keep; the *design* is sequential and belongs in
+where `/harness:plan`'s specialists earned their keep; the *design* is sequential and belongs in
 one context. So the graph gathers and verifies facts in parallel, and one strong agent
 designs from them. Version 2 fanned out designers and lost twice; see `CHANGELOG.md` 1.8.0.
 
-It is a separate command on purpose. Nothing here changes `/plan` or any architect file.
+It is a separate command on purpose. Nothing here changes `/harness:plan` or any architect file.
 Run the same task through both and compare.
 
 ## Input
@@ -28,7 +28,7 @@ $ARGUMENTS - a description of what to implement
 
 ## Step 1: Gather requirements
 
-Same as `/plan`:
+Same as `/harness:plan`:
 
 - **If $ARGUMENTS is provided:** use it as the requirements; ask for acceptance
   criteria if none.
@@ -45,7 +45,7 @@ but do not invent facts to fill gaps; the lead reads the code before it partitio
 There is no domain table. Ask one question: **are the facts a right plan needs spread
 across two or more subsystems that one reader would not hold at once?** Entry path and
 fill pipeline and copy-trading and the test harness — yes. One file cluster, one
-service, one bug — no: `/plan`, or just read the code.
+service, one bug — no: `/harness:plan`, or just read the code.
 
 Do not run the workflow for a one-cluster task. The lead refuses with fewer than two
 briefs anyway, and a two-brief run still costs a lead, two investigators, up to 25
@@ -126,15 +126,15 @@ In this order:
 
 ## Step 5: Human gate, then tasks
 
-Wait for approval. Then offer tracked tasks exactly as `/plan` Step 6 does, from
+Wait for approval. Then offer tracked tasks exactly as `/harness:plan` Step 6 does, from
 `phases`: all of Layer 0 first, `addBlockedBy` from `edges` (declared and shared-file).
 Confirm each unbacked edge with the user before wiring it — re-adding a fake edge turns
 the graph back into the chain it started as.
 
 ## Measuring the experiment
 
-**The bar is `/plan`.** Kim et al.'s baseline paradox: once a single agent already clears
-~45% on a task, adding agents is net negative unless the architecture is right. `/plan`
+**The bar is `/harness:plan`.** Kim et al.'s baseline paradox: once a single agent already clears
+~45% on a task, adding agents is net negative unless the architecture is right. `/harness:plan`
 clears that bar on these tasks, so the graph has to win on **findings recall at lower
 cost**, not on a vibe read of one plan. On the same brief, both commands, compare:
 

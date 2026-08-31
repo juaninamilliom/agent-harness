@@ -363,7 +363,7 @@ Output should include:
 ## Example Usage
 
 ```
-/plan "Add webhook support for payment confirmations"
+/harness:plan "Add webhook support for payment confirmations"
 ```
 
 ---
@@ -382,7 +382,7 @@ After the plan is presented and the user approves it, offer to create tracked ta
        "options": [
          {
            "label": "Yes, create tasks (Recommended)",
-           "description": "Creates tasks with dependencies for each phase. Enables /commit to auto-detect phases."
+           "description": "Creates tasks with dependencies for each phase. Enables /harness:commit to auto-detect phases."
          },
          {
            "label": "No, skip task creation",
@@ -395,7 +395,7 @@ After the plan is presented and the user approves it, offer to create tracked ta
 
 2. **If yes**, parse the approved plan phases and create tasks in dependency order:
    - Create root phases (no dependencies) first
-   - Subject format: `"Phase N: [phase title]"` (this convention is used by `/commit` for lookup)
+   - Subject format: `"Phase N: [phase title]"` (this convention is used by `/harness:commit` for lookup)
    - Description should include: commit message, files list, domain owner
    - Use `addBlockedBy` to wire dependencies based on "Depends on" annotations in the plan
    - Example:
@@ -418,9 +418,9 @@ After the plan is presented and the user approves it, offer to create tracked ta
 ## After Approval
 
 1. User implements phase by phase
-2. After each phase, user runs `/commit` to commit that phase
+2. After each phase, user runs `/harness:commit` to commit that phase
 3. Quality gates run automatically during commit
-4. If tasks were created, `/commit` auto-detects pending phases via TaskList
+4. If tasks were created, `/harness:commit` auto-detects pending phases via TaskList
 5. Clean git history achieved!
 
 ---

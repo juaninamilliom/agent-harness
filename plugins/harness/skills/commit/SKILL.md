@@ -33,13 +33,13 @@ If the current branch is any of these, **STOP IMMEDIATELY** and inform the user 
 
 ### Step 2: Check for Active Plan (Plan→Commit Integration)
 
-**This step links the `/plan` command output to commit validation.**
+**This step links the `/harness:plan` command output to commit validation.**
 
 **Detection Method 1: TaskList-based (preferred)**
 
 1. Call `TaskList` to check for tasks with subjects matching `"Phase N:"` pattern
 2. If matching tasks found:
-   - These were created by `/plan` Step 6
+   - These were created by `/harness:plan` Step 6
    - Filter to pending and in_progress tasks (skip completed)
    - Present as phase options to the user via AskUserQuestion:
      ```
