@@ -11,6 +11,16 @@ Three delivery surfaces:
 | **Project scaffold** (`scaffold/`) | CLAUDE.md template (architect gate + routing table), domain-architect template, env-verify recipe, settings | `scaffold/init.sh <project-dir>` stamps once; the project owns the files afterwards |
 | **Global layer** (`global/`) | Permissions allowlist, attention/notify hooks, keybindings, statusline | `global/install.sh` merges into `~/.claude` (never overwrites) |
 
+The `--graph` path of `/harness:review` (`workflows/review-graph.js`) runs five review
+lenses; two of them — `silent-failure` and `tests` — default to agents from the separate
+`pr-review-toolkit` plugin (claude-plugins-official), not to anything shipped in
+`harness` itself. Without `pr-review-toolkit` installed, those two lenses degrade
+gracefully (a `WARNING: ... lenses returned nothing` is logged and the result is marked
+`partial`, never blocked). Pass `args.lensAgentTypes` on the `Workflow` call to
+substitute in-plugin agents instead, e.g.
+`{ 'silent-failure': 'pr-review', tests: 'test-architect' }` — unlisted lens keys keep
+their default.
+
 ## Quickstart
 
 ```bash

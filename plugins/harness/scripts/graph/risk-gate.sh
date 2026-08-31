@@ -29,8 +29,44 @@
 
 set -uo pipefail
 DIR="${1:?usage: risk-gate.sh <component-dir> [base-ref]}"
-BASE="${2:-origin/main}"
 cd "$DIR" || { echo "no such dir: $DIR" >&2; exit 2; }
+
+# Default base ref, in priority order (an explicit [base-ref] argument always wins -
+# see BASE below, which only falls back to this when $2 is absent). Every step here is
+# LOCAL ONLY - no `git remote show origin`, which hits the network. This gate has to
+# stay fast and safe to run offline.
+#   (a) an "Integration branch" declared in this repo's CLAUDE.md - checked here and
+#       one directory up, since a multi-repo layout keeps the project CLAUDE.md above
+#       each component's own git root (the component itself rarely has its own).
+#   (b) the remote's recorded default branch, read from the LOCAL remote-tracking ref
+#       (`git symbolic-ref` - no network) rather than `git remote show origin`
+#       (contacts the remote).
+#   (c) "main".
+declared_branch() { # declared_branch <claude-md-path> - prints a branch name, or nothing
+  local md="$1" block name
+  [ -f "$md" ] || return 0
+  # A "## Integration branch" heading commonly carries the name on a LATER line
+  # (a backtick block under the heading), not the matched line itself - so pull a
+  # few lines of context, not just the one line that matched.
+  block=$(grep -im1 -A3 'integration branch' "$md") || return 0
+  name=$(printf '%s\n' "$block" | grep -oE '`[^`]+`' | head -1 | tr -d '`')
+  if [ -z "$name" ]; then
+    name=$(printf '%s\n' "$block" | grep -im1 'integration branch' | sed -E 's/.*[Ii]ntegration [Bb]ranch[^:]*:[[:space:]]*//' | sed -E 's/[^A-Za-z0-9_.\/-].*//')
+  fi
+  printf '%s' "$name"
+}
+GIT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+DEFAULT_BRANCH=""
+if [ -n "$GIT_ROOT" ]; then
+  DEFAULT_BRANCH="$(declared_branch "$GIT_ROOT/CLAUDE.md")"
+  [ -z "$DEFAULT_BRANCH" ] && DEFAULT_BRANCH="$(declared_branch "$GIT_ROOT/../CLAUDE.md")"
+fi
+if [ -z "$DEFAULT_BRANCH" ]; then
+  DEFAULT_BRANCH="$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's#^origin/##')"
+fi
+[ -z "$DEFAULT_BRANCH" ] && DEFAULT_BRANCH="main"
+
+BASE="${2:-origin/$DEFAULT_BRANCH}"
 
 FILES=$(git diff --name-only "$BASE"...HEAD 2>/dev/null || git diff --name-only "$BASE" 2>/dev/null)
 [ -z "$FILES" ] && { echo "NO DIFF vs $BASE"; exit 1; }

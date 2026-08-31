@@ -71,15 +71,26 @@ architecture and conventions, and (for a project with more than one payment rail
 blockchain, or similar axis) which one is primary and which is legacy.
 `.trim()
 
+// Optional per-lens agent-type override - same override mechanism as plan-graph.js's
+// investigatorAgentTypes, applied to a fixed set of named lenses instead of an
+// allowlist: a caller can substitute the agent a given lens runs as without touching
+// this file. Keyed by lens key; a key with no entry keeps its default below.
+// Two of the five defaults ('silent-failure', 'tests') run agents from the separate
+// pr-review-toolkit plugin (see README.md) - if that plugin is not installed, pass
+// e.g. { 'silent-failure': 'pr-review', tests: 'test-architect' } to run in-plugin
+// agents in their place instead.
+const LENS_AGENT_TYPES = (args && args.lensAgentTypes && typeof args.lensAgentTypes === 'object' && !Array.isArray(args.lensAgentTypes)) ? args.lensAgentTypes : {}
+const lensAgent = (key, dflt) => (Object.prototype.hasOwnProperty.call(LENS_AGENT_TYPES, key) ? LENS_AGENT_TYPES[key] : dflt)
+
 const LENSES = [
   {
     key: 'general',
-    agentType: 'pr-review',
+    agentType: lensAgent('general', 'pr-review'),
     prompt: 'Review this diff as a senior engineer: correctness, security, error handling, code smells.',
   },
   {
     key: 'conventions',
-    agentType: 'code-architect',
+    agentType: lensAgent('conventions', 'code-architect'),
     prompt:
       'Check this diff against this repo\'s conventions: read the project CLAUDE.md for anything it ' +
       'declares, then compare against the patterns already established in the surrounding code the ' +
@@ -87,12 +98,12 @@ const LENSES = [
   },
   {
     key: 'security',
-    agentType: 'security-architect',
+    agentType: lensAgent('security', 'security-architect'),
     prompt: 'Review this diff for auth bypass, secrets exposure, injection, and money-path authorization gaps.',
   },
   {
     key: 'silent-failure',
-    agentType: 'pr-review-toolkit:silent-failure-hunter',
+    agentType: lensAgent('silent-failure', 'pr-review-toolkit:silent-failure-hunter'),
     prompt:
       'Hunt this diff for silent failures: swallowed errors, catch blocks that log and continue, ' +
       'fallbacks that mask a real failure, and state transitions that report success on failure. ' +
@@ -102,7 +113,7 @@ const LENSES = [
   },
   {
     key: 'tests',
-    agentType: 'pr-review-toolkit:pr-test-analyzer',
+    agentType: lensAgent('tests', 'pr-review-toolkit:pr-test-analyzer'),
     prompt: 'Review test coverage for the new logic in this diff. Identify behavioural gaps, not line coverage.',
   },
 ]
