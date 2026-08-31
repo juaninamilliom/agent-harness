@@ -1,0 +1,10 @@
+# Suggested ~/.codex/config.toml additions for the harness workflow.
+# Review and paste what you want - codex/install.sh does not touch config.toml.
+# Verified against developers.openai.com/codex config-reference (2026-08-31):
+# approval_policy and sandbox_mode below are both current, valid values.
+
+# Ask before escalating; sandboxed writes inside the workspace.
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+# Per-project trust is set the first time you run codex in a repo.
