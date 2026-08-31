@@ -869,13 +869,13 @@ access paths. Delete paths that don't exist rather than inventing them.
 
 - [ ] **Step 5: Write the three small config files**
 
-`scaffold/settings.json` — first run `gh api user --jq .login` and substitute the result for `<gh-login>` (this file ships in the repo with the real login baked in; it is what makes a fresh clone of a scaffolded project pull the engine from GitHub):
+`scaffold/settings.json` — the GitHub login is `juaninamilliom` (user-provided repo: https://github.com/juaninamilliom/agent-harness.git); this file ships with it baked in — it is what makes a fresh clone of a scaffolded project pull the engine from GitHub:
 
 ```json
 {
   "extraKnownMarketplaces": {
     "agent-harness": {
-      "source": { "source": "github", "repo": "<gh-login>/agent-harness" }
+      "source": { "source": "github", "repo": "juaninamilliom/agent-harness" }
     }
   },
   "enabledPlugins": {
@@ -1264,19 +1264,28 @@ git add -A && git commit -m "feat: codex reduced port - protocols, AGENTS templa
 Run: `cd /Users/JuansMacbook/Workspace/agent-harness && git status --porcelain && bash tests/run-all.sh`
 Expected: clean tree, ALL GREEN.
 Run: `gh auth status`
-Expected: logged in as the user's personal account. If it shows an org context only, stop and ask the user which account to target.
+Expected: logged in as `juaninamilliom`.
 
-- [ ] **Step 2: Create and push**
+- [ ] **Step 2: Reconcile with the existing remote and push**
+
+The repo already exists at https://github.com/juaninamilliom/agent-harness.git with one stub commit on `main` (observed head `ae3259b`). The user provided this URL as the destination.
 
 ```bash
-gh repo create agent-harness --private --source=. --remote=origin --push
+git remote add origin https://github.com/juaninamilliom/agent-harness.git
+git fetch origin
+git log --stat origin/main   # inspect the remote history
 ```
-Expected: repo created under the personal account, `main` pushed. (Private by default — the user can flip visibility; making it public is their call, not this plan's.)
+If the remote history is only init stubs (README/LICENSE/.gitignore, no substantive content): merge it beneath our history, keeping our content wherever both sides define a file, then push:
+```bash
+git merge --allow-unrelated-histories -X ours origin/main -m "Merge remote init stub"
+git push -u origin main
+```
+If the remote holds ANY substantive content (real files beyond init stubs): STOP and ask the user how to reconcile — do not force-push and do not discard remote content.
 
 - [ ] **Step 3: Verify**
 
-Run: `gh repo view --json name,visibility,defaultBranchRef && git ls-remote origin main | head -1`
-Expected: name `agent-harness`, visibility PRIVATE, default branch main, remote head equals local `git rev-parse main`.
+Run: `gh repo view juaninamilliom/agent-harness --json name,visibility,defaultBranchRef && git ls-remote origin main | head -1`
+Expected: name `agent-harness`, default branch main, remote head equals local `git rev-parse main`. Report the visibility as found (the user created the repo; visibility is theirs — do not change it).
 
 - [ ] **Step 4: Install the harness on this machine for real**
 
