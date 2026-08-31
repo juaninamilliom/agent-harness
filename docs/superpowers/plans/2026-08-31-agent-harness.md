@@ -1012,7 +1012,8 @@ run "shell syntax"         bash -c 'for f in $(find . -name "*.sh" -not -path ".
 run "plan-graph smoke"     node tests/plan-graph.smoke.mjs plugins/harness/workflows/plan-graph.js
 run "review-graph smoke"   node tests/review-graph.smoke.mjs plugins/harness/workflows/review-graph.js
 run "frozen rules"         plugins/harness/scripts/graph/check-frozen.sh plugins/harness
-run "de-beeped"            bash -c '! grep -rEinq "beep|justbeep|trello|solana|\bsui\b|@mysten|privy|turnkey|bluefin|hyperliquid|polymarket|\bdflow\b|kalshi|postman" plugins/ scaffold/ global/ codex/ addons/ README.md docs/philosophy.md docs/porting.md 2>/dev/null'
+# global/hooks/ excluded from the de-beep sweep: verbatim-copied user plumbing whose AppleScript "beep" is a macOS API, not a project reference
+run "de-beeped"            bash -c '! grep -rEinq "beep|justbeep|trello|solana|\bsui\b|@mysten|privy|turnkey|bluefin|hyperliquid|polymarket|\bdflow\b|kalshi|postman" plugins/ scaffold/ global/settings.fragment.json global/install.sh global/doctor.sh global/keybindings.json codex/ addons/ README.md docs/philosophy.md docs/porting.md 2>/dev/null'
 run "global install test"  bash tests/test-global-install.sh
 run "init test"            bash tests/test-init.sh
 [ -f tests/test-codex-install.sh ] && run "codex install test" bash tests/test-codex-install.sh
