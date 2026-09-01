@@ -8,7 +8,7 @@ Three delivery surfaces:
 | Surface | What it is | How it lands |
 |---|---|---|
 | **Engine** (`plugins/harness/`) | Skills (`/harness:plan`, `plan-graph`, `review`, `commit`, `pr`, `worktree`, `worktree-remove`), 19 generic agents, graph verification machinery | Claude Code plugin from this repo's marketplace; updates by version bump — no copied files, no drift |
-| **Project scaffold** (`scaffold/`) | CLAUDE.md template (architect gate + routing table), domain-architect template, env-verify recipe, settings | `scaffold/init.sh <project-dir>` stamps once; the project owns the files afterwards |
+| **Project scaffold** (`scaffold/`) | CLAUDE.md template (architect gate + routing table), craft- and domain-architect templates, env-verify recipe, settings | `scaffold/init.sh <project-dir>` stamps once; the project owns the files afterwards |
 | **Global layer** (`global/`) | Permissions allowlist, attention/notify hooks, keybindings, statusline | `global/install.sh` merges into `~/.claude` (never overwrites) |
 
 The `--graph` path of `/harness:review` (`workflows/review-graph.js`) runs five review

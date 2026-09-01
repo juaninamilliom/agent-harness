@@ -10,10 +10,13 @@ is C++-specific.
 
 **A craft (stack) architect** knows a *language or framework's* traps —
 things that are true in every codebase using that stack. The harness ships
-these for React, Vue, Angular, and Android. There is deliberately no
-`cpp-architect`, `go-architect`, or `python-architect` in the box — build
-the one you need, from expertise, in an afternoon. Its content comes from
-knowledge of the stack, not from reading your code.
+these for React, Vue, Angular, and Android, but the *pattern* is fully
+stack-agnostic: the shipped ones are just pre-filled instances of
+`scaffold/agents/_craft-architect.template.md`, which `init.sh` stamps into
+your project. There is deliberately no `cpp-architect`, `go-architect`, or
+`python-architect` in the box — copy the template and build the one you
+need, from expertise, in an afternoon. Its content comes from knowledge of
+the stack, not from reading your code.
 
 **A domain architect** knows *your codebase's* rules — the invariants,
 state machines, and traps of one subsystem, which no amount of language
@@ -64,9 +67,23 @@ Three rules that make the difference:
    section is generic is just a slower `harness:code-architect`. Every
    bullet should be something a good generalist would NOT already do.
 
-## Worked example A — a C++ craft architect
+## Start from the template
 
-A condensed `cpp-architect` worth shipping (expand each area to taste):
+Both kinds have a stamped, fill-in template in your project after `init.sh`:
+
+```bash
+cp .claude/agents/_craft-architect.template.md  .claude/agents/cpp-architect.md   # craft
+cp .claude/agents/_domain-architect.template.md .claude/agents/protocol-architect.md  # domain
+```
+
+Open the copy, delete the guidance block above the `---`, and fill the
+placeholders. The template's five "worth having" criteria (first-principles
+model, trap classes with diagnostics, tooling as anchors, convention
+deference, handoffs) are the checklist for whether it's done.
+
+## Worked example A — the craft template filled in for C++
+
+A condensed `cpp-architect` (expand each area to taste):
 
 ````markdown
 ---

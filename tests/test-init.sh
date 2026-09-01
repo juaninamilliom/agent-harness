@@ -14,6 +14,7 @@ chk "fill markers present"         'grep -q "<!-- FILL" "$SB/proj/CLAUDE.md"'
 chk "settings enable plugin"       'jq -e ".enabledPlugins[\"harness@agent-harness\"] == true" "$SB/proj/.claude/settings.json" >/dev/null'
 chk "settings.local stamped"       'test -f "$SB/proj/.claude/settings.local.json"'
 chk "domain template stamped"      'test -f "$SB/proj/.claude/agents/_domain-architect.template.md"'
+chk "craft template stamped"       'test -f "$SB/proj/.claude/agents/_craft-architect.template.md"'
 chk "env-verify template stamped"  'test -f "$SB/proj/.claude/skills/_env-verify.template/SKILL.md"'
 chk "risk patterns example"        'test -f "$SB/proj/.claude/risk-patterns.txt.example"'
 
