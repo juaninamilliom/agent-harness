@@ -135,12 +135,11 @@ architects. Filling in the scaffold's CLAUDE.md is what makes the engine
 smart about *your* project.
 
 **What are "domain architects" and do I need them?** Project-owned expert
-agents the plan skill routes to. You don't need any on day one. The full
-how-to — including craft architects for stacks the harness doesn't ship
-(C++, Go, Python, …), with worked examples — is
-[docs/building-architects.md](building-architects.md); the when/granularity
-doctrine also sits at the top of
-`scaffold/agents/_domain-architect.template.md`.
+agents the plan skill routes to. You don't need any on day one — and you
+don't write them by hand: Claude generates them from your context. The
+prompts, mandatory sections, and quality bar — including craft architects
+for stacks the harness doesn't ship (C++, Go, Python, …) — are in
+[docs/building-architects.md](building-architects.md).
 
 **Something says an agent type is unknown.** Run `claude plugin list` and
 check the harness plugin is enabled; in-plugin agents are addressed as

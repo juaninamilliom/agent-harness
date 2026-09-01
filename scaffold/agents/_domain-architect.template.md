@@ -1,8 +1,13 @@
-# Carving your domains — read this before instantiating
+# Carving your domains — read this before generating
 
-(Full how-to with worked examples, including craft architects for stacks the
-harness doesn't ship: docs/building-architects.md in the harness repo —
-https://github.com/juaninamilliom/agent-harness/blob/main/docs/building-architects.md)
+You normally do NOT fill this by hand: prompt Claude to investigate the
+domain and generate the architect, handing it this file as the required
+output shape. The prompts (including the investigate-first domain prompt),
+the mandatory-sections table, and the quality bar are in
+docs/building-architects.md in the harness repo —
+https://github.com/juaninamilliom/agent-harness/blob/main/docs/building-architects.md
+The carving rules below decide WHEN a domain earns an architect; only you
+can supply the war stories that make its What-you-know section true.
 
 (Everything above the `---` line is guidance; delete it when you create a
 real architect from this template. While this text sits above the
