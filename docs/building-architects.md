@@ -12,6 +12,14 @@ the copy-paste prompts for both — or run `/harness:make-architect`, which
 walks the same flow interactively (context gathering, investigate-first for
 domains, the contract check, file write, routing registration).
 
+**Compatibility:** the `/harness:make-architect` skill and the dispatch/
+routing of finished architects require Claude Code (terminal CLI, desktop
+app, or IDE extension — anywhere the plugin is installed). Prompt A and
+Prompt B below are portable: paste them into any capable LLM and you get a
+valid architect file. The file itself is a Claude Code subagent — Codex has
+no subagent dispatch (see `docs/porting.md`), though its content works as
+reference material anywhere.
+
 ## The two kinds — decide which you're building
 
 **A craft (stack) architect** knows a *language or framework's* traps —

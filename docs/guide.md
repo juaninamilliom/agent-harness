@@ -22,6 +22,7 @@ else, read the first two tables.
 
 | Command | Needs | Does NOT need |
 |---|---|---|
+| Everything `/harness:*` | **Claude Code** with the plugin installed — terminal CLI, desktop app, or IDE extension all work | Plain claude.ai chat, Cursor, or other agents — none of them run plugins. Codex users: the reduced port in `codex/` |
 | `/harness:plan`, `/harness:plan-graph` | Nothing beyond the plugin | A filled-in CLAUDE.md helps (domain routing) but isn't required |
 | `/harness:review` (both modes) | `git`; your project's type-check command (default `npx tsc --noEmit`) | GitHub CLI |
 | `/harness:commit` | `git` with a push-able remote (it ends with `git push origin HEAD`) | **GitHub CLI — not needed.** No `gh`, no GitHub account requirement |
