@@ -78,6 +78,15 @@ migrations, and auth surfaces, plus whatever your project adds via
 `${plugin}/scripts/graph/risk-gate.sh <component-dir>` if you want its
 opinion explicitly.
 
+**The `pr-review-toolkit` soft dependency:** two of the five graph lenses
+(`silent-failure` and `tests`) default to agents from the separate
+`pr-review-toolkit` plugin (claude-plugins-official). Without it installed
+those lenses degrade gracefully — a WARNING is logged and the result is
+marked `partial`, never blocked. To substitute in-plugin agents instead,
+pass `args.lensAgentTypes` on the Workflow call, e.g.
+`{ 'silent-failure': 'harness:pr-review', tests: 'harness:test-architect' }`
+— unlisted lens keys keep their default.
+
 **One-line fixes:** a single `harness:pr-review`, no loop. The skill says
 this itself.
 

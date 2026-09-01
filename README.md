@@ -1,31 +1,37 @@
 # agent-harness
 
 A project-agnostic development harness for Claude Code (and, reduced, for
-OpenAI Codex). Extracted from a production setup; survives any single project.
+OpenAI Codex). Extracted from a production setup; survives any single
+project. Works in any Claude Code surface — terminal CLI, desktop app, or
+IDE extension — wherever the plugin is installed.
 
-Three delivery surfaces:
+What you get: workflow skills (`/harness:plan` → `/harness:review` →
+`/harness:commit` → `/harness:pr`, plus worktrees, graph-verified planning,
+and architect generation), 19 generic expert agents, and a scaffold that
+teaches the engine your project's specifics.
+
+## Where to go
+
+| You want to… | Read |
+|---|---|
+| **Learn which command to use when, and what each needs** | [docs/guide.md](docs/guide.md) — the field guide. Start here. (Short prerequisites answer: only `/harness:pr` needs the GitHub CLI) |
+| **Install it** (machine or project) | [Getting started](#getting-started--pick-your-path), just below |
+| **Create expert agents for your stack or your domains** | [docs/building-architects.md](docs/building-architects.md) — Claude generates them; you supply context and judge. Or just run `/harness:make-architect` |
+| **Understand the graph-verified planner in depth** | [docs/plan-graph.md](docs/plan-graph.md) — pipeline, every knob, failure semantics, recovery |
+| **Understand the thinking behind the harness** | [docs/philosophy.md](docs/philosophy.md) — the workflow discipline, tool-agnostic |
+| **Use OpenAI Codex** | `codex/install.sh`, and [docs/porting.md](docs/porting.md) for what maps and what doesn't |
+| **Add an integration** (ticketing etc.) | [addons/README.md](addons/README.md) — integrations wrap the engine, never enter it |
+| **Contribute / understand the internals** | [plugins/harness/FROZEN.md](plugins/harness/FROZEN.md) (rules that must not decay) and `tests/run-all.sh` (the gate — keep it ALL GREEN) |
+
+## The three surfaces
 
 | Surface | What it is | How it lands |
 |---|---|---|
-| **Engine** (`plugins/harness/`) | Skills (`/harness:plan`, `plan-graph`, `review`, `commit`, `pr`, `worktree`, `worktree-remove`, `make-architect`), 19 generic agents, graph verification machinery | Claude Code plugin from this repo's marketplace; updates by version bump — no copied files, no drift |
-| **Project scaffold** (`scaffold/`) | CLAUDE.md template (architect gate + routing table), craft- and domain-architect templates, env-verify recipe, settings | `scaffold/init.sh <project-dir>` stamps once; the project owns the files afterwards |
+| **Engine** (`plugins/harness/`) | The skills, 19 generic agents, graph verification machinery | Claude Code plugin from this repo's marketplace; updates by version bump — no copied files, no drift |
+| **Project scaffold** (`scaffold/`) | CLAUDE.md template (architect gate + routing table), architect output-contract templates, env-verify recipe, settings | `scaffold/init.sh <project-dir>` stamps once; the project owns the files afterwards |
 | **Global layer** (`global/`) | Permissions allowlist, attention/notify hooks, keybindings, statusline | `global/install.sh` merges into `~/.claude` (never overwrites) |
 
-The `--graph` path of `/harness:review` (`workflows/review-graph.js`) runs five review
-lenses; two of them — `silent-failure` and `tests` — default to agents from the separate
-`pr-review-toolkit` plugin (claude-plugins-official), not to anything shipped in
-`harness` itself. Without `pr-review-toolkit` installed, those two lenses degrade
-gracefully (a `WARNING: ... lenses returned nothing` is logged and the result is marked
-`partial`, never blocked). Pass `args.lensAgentTypes` on the `Workflow` call to
-substitute in-plugin agents instead, e.g.
-`{ 'silent-failure': 'harness:pr-review', tests: 'harness:test-architect' }` — unlisted
-lens keys keep their default.
-
 ## Getting started — pick your path
-
-**New here? Read [docs/guide.md](docs/guide.md)** — which command to use
-when, and what each one needs (short answer on prerequisites: only
-`/harness:pr` needs the GitHub CLI; everything else is plain git).
 
 **Path 1 — teammate of a project that already uses the harness: do nothing.**
 Clone the project, open Claude Code, accept the one-time marketplace/plugin
@@ -65,23 +71,11 @@ git clone https://github.com/juaninamilliom/agent-harness.git && cd agent-harnes
 Forking instead of consuming this marketplace? Re-point one line:
 `scaffold/settings.json`'s `extraKnownMarketplaces` repo.
 
-When a domain of your project earns its own expert agent, see **"Carving
-your domains"** at the top of `scaffold/agents/_domain-architect.template.md`.
-
-## Layout
-
-- `docs/guide.md` — the field guide: which command when, prerequisites, FAQ
-- `docs/plan-graph.md` — the plan-graph workflow reference: pipeline, knobs, failure semantics, recovery
-- `docs/building-architects.md` — how to have Claude generate your craft and domain architects: prompts, mandatory sections, quality bar
-- `docs/philosophy.md` — the workflow discipline, tool-agnostic
-- `docs/porting.md` — what maps between Claude Code and Codex
-- `plugins/harness/FROZEN.md` — rules that must not decay; `scripts/graph/check-frozen.sh` enforces
-- `addons/README.md` — how integrations (ticketing etc.) wrap the engine without entering it
-- `tests/run-all.sh` — structural checks, smoke tests, installer tests
-
 ## Principles (short form)
 
 Read the code first. Claims carry anchors (a file:line and a command that
 proves them). Workers and verifiers never share a context. Type-check,
 never build, during development. The engine knows no project; projects
-declare themselves in CLAUDE.md and the engine reads it.
+declare themselves in CLAUDE.md and the engine reads it. Architects are
+LLM-generated; humans supply context and judge. Full version:
+[docs/philosophy.md](docs/philosophy.md).
