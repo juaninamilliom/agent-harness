@@ -8,7 +8,9 @@ them, and you can consult one directly with the Task tool. The harness ships
 architects in this harness's lineage were all LLM-written. Your job is
 three things: pick which kind you need, feed the LLM the right context, and
 judge the output against the mandatory sections below. This doc gives you
-the copy-paste prompts for both.
+the copy-paste prompts for both — or run `/harness:make-architect`, which
+walks the same flow interactively (context gathering, investigate-first for
+domains, the contract check, file write, routing registration).
 
 ## The two kinds — decide which you're building
 

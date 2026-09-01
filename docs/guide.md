@@ -16,6 +16,7 @@ else, read the first two tables.
 | Commit trivial work | `git commit` by hand | `/harness:commit` (three subagent gates on a typo is waste) |
 | Open a PR | `/harness:pr` | Hand-written one-line PR descriptions |
 | Work on two things in parallel | `/harness:worktree` | Branch-switching in one checkout, or any tool's built-in "isolation" feature |
+| Create a stack or domain expert agent | `/harness:make-architect` | Hand-writing agent files (Claude generates them — see [building-architects](building-architects.md)) |
 
 ## What each command needs
 
@@ -139,7 +140,8 @@ agents the plan skill routes to. You don't need any on day one — and you
 don't write them by hand: Claude generates them from your context. The
 prompts, mandatory sections, and quality bar — including craft architects
 for stacks the harness doesn't ship (C++, Go, Python, …) — are in
-[docs/building-architects.md](building-architects.md).
+[docs/building-architects.md](building-architects.md) — or just run
+`/harness:make-architect`, which walks the whole flow interactively.
 
 **Something says an agent type is unknown.** Run `claude plugin list` and
 check the harness plugin is enabled; in-plugin agents are addressed as
