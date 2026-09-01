@@ -20,6 +20,9 @@ designs from them. Version 2 fanned out designers and lost twice.
 It is a separate command on purpose. Nothing here changes `/harness:plan` or any architect file.
 Run the same task through both and compare.
 
+Full reference (pipeline, args, failure semantics, resume):
+https://github.com/juaninamilliom/agent-harness/blob/main/docs/plan-graph.md
+
 ## Input
 
 $ARGUMENTS - a description of what to implement

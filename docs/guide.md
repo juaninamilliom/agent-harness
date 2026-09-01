@@ -48,6 +48,9 @@ agent design. Reach for it when the *investigation* is the hard part —
 "what is actually true about this codebase" spans several subsystems and a
 wrong assumption would sink the plan.
 
+Full mechanics — pipeline, every knob, failure semantics, recovery — live in
+the dedicated reference: [docs/plan-graph.md](plan-graph.md).
+
 Honest guidance from measured runs: it costs roughly **2× the tokens**, and
 on normal-sized tasks the plain `/harness:plan` has matched or beaten it.
 Use the graph when facts span subsystems and the cost of a false assumption

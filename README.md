@@ -71,6 +71,7 @@ your domains"** at the top of `scaffold/agents/_domain-architect.template.md`.
 ## Layout
 
 - `docs/guide.md` — the field guide: which command when, prerequisites, FAQ
+- `docs/plan-graph.md` — the plan-graph workflow reference: pipeline, knobs, failure semantics, recovery
 - `docs/philosophy.md` — the workflow discipline, tool-agnostic
 - `docs/porting.md` — what maps between Claude Code and Codex
 - `plugins/harness/FROZEN.md` — rules that must not decay; `scripts/graph/check-frozen.sh` enforces
