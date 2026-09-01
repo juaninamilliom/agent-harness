@@ -5,7 +5,7 @@
     {
       "name": "harness",
       "source": "./plugins/harness",
-      "description": "Project-agnostic engine: plan/review/commit/pr/worktree skills, 16 generic agents, graph verification machinery"
+      "description": "Project-agnostic engine: plan/review/commit/pr/worktree skills, 19 generic agents, graph verification machinery"
     }
   ]
 }

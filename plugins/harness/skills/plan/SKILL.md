@@ -54,7 +54,7 @@ Analyze the requirements to detect which specialist domains are relevant. Check 
 
 | Domain | Keywords (case-insensitive) | File Patterns |
 |--------|----------------------------|---------------|
-| **Frontend** | react, component, UI, CSS, tailwind, next.js, hook, page, layout, client, render, style, button, form, modal | `*.tsx`, `*.css`, `components/`, `app/`, `hooks/` |
+| **Frontend** | react, vue, nuxt, angular, component, UI, CSS, tailwind, next.js, hook, page, layout, client, render, style, button, form, modal | `*.tsx`, `*.vue`, `angular.json`, `*.css`, `components/`, `app/`, `hooks/` |
 | **AI/LLM** | agent, LLM, prompt, embedding, RAG, inference, context, model, AI, MCP, tool, orchestrat | `*agent*`, `*llm*`, `*ai*`, `*mcp*`, `.claude/` |
 | **Testing** | test, testing, spec, unit test, integration test, coverage, jest, assertion, mock, fixture, test case | `*.test.ts`, `*.spec.ts`, `__tests__/`, `tests/`, `test/` |
 | **Security** | security, auth, authentication, authorization, encryption, vulnerability, OWASP, XSS, injection, SQL injection, CSRF, secure | `*auth*`, `*security*`, `apiKey*` |
@@ -76,9 +76,13 @@ Additionally, read the project CLAUDE.md routing table and add its domain rows �
 
 For each detected domain, invoke the corresponding specialist agent to **define the architectural approach for their domain**. Specialists are collaborators, not just advisors.
 
-**Frontend detected → Invoke frontend-architect:**
+**Frontend detected → pick the stack architect, then invoke it.** Choose by file
+signals: `*.tsx`/`next.config.*` → `harness:react-architect`; `*.vue`/`nuxt.config.*`
+→ `harness:vue-architect`; `angular.json` → `harness:angular-architect`; mixed,
+vanilla, or unclear → `harness:frontend-architect` (the framework-agnostic fallback).
+Example with React:
 ```
-Task(subagent_type="harness:frontend-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
+Task(subagent_type="harness:react-architect", prompt="You are collaborating on an implementation plan for: [REQUIREMENTS].
 
 Your role: Define the frontend architecture for this feature.
 

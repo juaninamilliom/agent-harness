@@ -43,7 +43,10 @@ plugin-shipped agents need the prefix.
 | Agent | Domain | Triggers |
 |-------|--------|----------|
 | `harness:code-architect` | General | **DEFAULT** - use when unsure |
-| `harness:frontend-architect` | UI/React/CSS | components, hooks, styling, `*.tsx` |
+| `harness:react-architect` | React/Next.js | components, hooks, `*.tsx`, `next.config.*` |
+| `harness:vue-architect` | Vue/Nuxt | `*.vue`, `nuxt.config.*`, Pinia, reactivity |
+| `harness:angular-architect` | Angular | `angular.json`, signals, RxJS, standalone components |
+| `harness:frontend-architect` | Frontend (generic) | CSS, accessibility, Core Web Vitals, vanilla JS, mixed/unclear stack |
 | `harness:api-architect` | REST/API design | endpoints, request/response shapes, routes |
 | `harness:db-architect` | Database | models, schema, migrations, SQL |
 | `harness:security-architect` | Auth/security | auth, encryption, OWASP, secrets |

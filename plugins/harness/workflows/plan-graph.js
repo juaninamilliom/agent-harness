@@ -175,7 +175,7 @@ const synthAgentType = (args && args.synthAgentType) || 'harness:code-architect'
 const DEFAULT_INVESTIGATOR = 'harness:plan-investigator'
 const REFUTER = 'harness:claim-refuter'
 // Architects an investigator may run as. Read-only tool sets only: an investigator must
-// not be able to edit, build, or run tests. frontend-architect declares "All tools",
+// not be able to edit, build, or run tests. react-architect declares "All tools",
 // test-/performance-architect can run npm - excluded. The default is the generic
 // architects this plugin ships (harness:-qualified - the plugin's own registry entry,
 // not the bare name, is what a plugin consumer's session can actually resolve); pass
