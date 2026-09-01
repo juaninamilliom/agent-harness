@@ -53,7 +53,9 @@ plugin-shipped agents need the prefix.
 | `harness:ai-systems-architect` | AI/LLM/MCP | agents, prompts, MCP, `.claude/` |
 | `harness:android-architect` | Android/Kotlin | `*.kt`, Android Studio, Gradle |
 <!-- FILL: add one row per domain architect you create from
-     .claude/agents/_domain-architect.template.md, e.g.:
+     .claude/agents/_domain-architect.template.md — read "Carving your domains"
+     at the top of that template first (when a domain earns one, granularity,
+     the anatomy that makes it useful). Example row:
 | `billing-architect` | Payments/billing | invoices, subscriptions, src/billing/** | -->
 
 ## Project Overview

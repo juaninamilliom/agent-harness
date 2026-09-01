@@ -103,7 +103,7 @@ const PHASE = {
     commit: { type: 'string', description: 'the commit message' },
     files: { type: 'array', items: { type: 'string' }, description: 'repo-relative files this phase writes or creates' },
     dependsOn: { type: 'array', items: { type: 'string' }, description: 'ids of phases whose ARTIFACT this phase consumes. Not "should come after" - what it cannot be written without.' },
-    owner: { type: 'string', description: 'domain owner, e.g. trading-arena, security, frontend' },
+    owner: { type: 'string', description: 'domain owner, e.g. payments, security, frontend' },
     moneyScope: { type: 'boolean', description: 'touches charge / fee / payout / balance / wallet / order placement' },
     notes: { type: 'string' },
   },

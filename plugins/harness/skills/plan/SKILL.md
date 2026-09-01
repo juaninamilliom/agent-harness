@@ -18,17 +18,17 @@ $ARGUMENTS - a description of what to implement
 
 **YOU MUST FOLLOW THESE RULES - NO EXCEPTIONS:**
 
-1. **ALWAYS invoke the `code-architect` agent** via the Task tool. This is MANDATORY for every plan, regardless of complexity.
-2. **When domains are detected**, invoke specialist agents (e.g. frontend-architect, ai-systems-architect, and any other domain architects the requirements touch) to collaborate on the plan. The specialists don't just provide "insights" - they contribute architectural decisions for their domain.
+1. **ALWAYS invoke the `harness:code-architect` agent** via the Task tool. This is MANDATORY for every plan, regardless of complexity.
+2. **When domains are detected**, invoke specialist agents (e.g. `harness:frontend-architect`, `harness:ai-systems-architect`, and any domain architects the project's CLAUDE.md routing table declares — those project agents are invoked by their bare declared names) to collaborate on the plan. The specialists don't just provide "insights" - they contribute architectural decisions for their domain.
 3. **DO NOT** generate plans yourself. The agents generate the plan collaboratively.
 4. **DO NOT** skip agent invocation even if the task seems simple.
 
 **Collaborative Planning Model:**
-- When specialists are involved, the plan is a **joint effort** - not just code-architect's plan with specialist input
-- Specialists define the approach for their domain; code-architect synthesizes into a cohesive plan with commit boundaries
+- When specialists are involved, the plan is a **joint effort** - not just `harness:code-architect`'s plan with specialist input
+- Specialists define the approach for their domain; `harness:code-architect` synthesizes into a cohesive plan with commit boundaries
 - The final plan should reflect contributions from all involved architects
 
-If you do not invoke the code-architect agent, you are violating this command's requirements.
+If you do not invoke the `harness:code-architect` agent, you are violating this command's requirements.
 
 ---
 
@@ -227,13 +227,13 @@ Your decisions will be incorporated into the final plan by the code-architect.")
 - Each specialist contributes their domain's architecture
 
 **No specific domain detected:**
-- Proceed directly to code-architect without specialist collaboration
+- Proceed directly to `harness:code-architect` without specialist collaboration
 
 ### Step 4: Invoke Code Architect to Synthesize Plan (MANDATORY)
 
-**THIS STEP IS NOT OPTIONAL.** You MUST invoke the code-architect agent via the Task tool.
+**THIS STEP IS NOT OPTIONAL.** You MUST invoke the `harness:code-architect` agent via the Task tool.
 
-The code-architect's role is to **synthesize the collaborative plan** - taking specialist contributions and weaving them into a cohesive implementation plan with proper commit boundaries and sequencing.
+The `harness:code-architect`'s role is to **synthesize the collaborative plan** - taking specialist contributions and weaving them into a cohesive implementation plan with proper commit boundaries and sequencing.
 
 **When specialists were involved:**
 ```
@@ -429,7 +429,7 @@ After the plan is presented and the user approves it, offer to create tracked ta
 
 Before completing this command, verify:
 - [ ] Did you detect relevant domains and invoke specialist agents for them?
-- [ ] Did you invoke the `code-architect` agent via the Task tool?
+- [ ] Did you invoke the `harness:code-architect` agent via the Task tool?
 - [ ] Did the agents (not you) collaboratively generate the implementation plan?
 - [ ] Does the final plan attribute decisions to the contributing architects?
 

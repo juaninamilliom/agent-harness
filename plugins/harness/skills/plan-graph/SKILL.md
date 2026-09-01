@@ -6,7 +6,7 @@ argument-hint: [description]
 
 # Plan Graph
 
-`/harness:plan` is the control: specialists in prose, synthesized by `code-architect`. This is the
+`/harness:plan` is the control: specialists in prose, synthesized by `harness:code-architect`. This is the
 experiment, rebuilt on what the evidence says a graph is for.
 
 **Graph the investigation. Design once.** A graph buys breadth on decomposable work and
@@ -86,7 +86,7 @@ What the script does, so you can read its logs:
 3. **Reduce** (code) — dedupe by file:line + claim similarity (agreement merges into
    `agreedBy`), rank by importance / kind / agreement, cap at `maxVerify`. Out-of-scope
    findings are kept.
-4. **Verify** — one fresh `claim-refuter` per ranked finding: is the quote there
+4. **Verify** — one fresh `harness:claim-refuter` per ranked finding: is the quote there
    (`check-quote.sh`), does the claim follow, is it current. Three outcomes: confirmed /
    refuted (with the correction) / unverified (the refuter failed — never counted as
    refuted).

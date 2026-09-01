@@ -14,7 +14,7 @@ more.
 
 ## Default path: three-pass review loop
 
-Three passes of `pr-review`, **fixing between them**. That fix is what makes this a
+Three passes of `harness:pr-review`, **fixing between them**. That fix is what makes this a
 loop rather than three blind repeats — pass N reviews code that pass N-1 changed, so
 the edge between passes carries real data.
 
@@ -22,7 +22,7 @@ the edge between passes carries real data.
 
 For pass 1 through 3:
 
-1. **Dispatch one `pr-review`** with the current diff. Fresh subagent, so it has not
+1. **Dispatch one `harness:pr-review`** (Task tool, `subagent_type="harness:pr-review"`) with the current diff. Fresh subagent, so it has not
    seen the previous pass.
 2. **Tell it what changed since the last pass** — "pass 2 of 3; pass 1 flagged X and
    Y, both now fixed; do not re-report them." This is the only context that crosses
@@ -206,4 +206,4 @@ it exceeds the cost of the run.
 
 ## When neither is right
 
-One-line fixes, typos, config values: a single `pr-review`, no loop.
+One-line fixes, typos, config values: a single `harness:pr-review`, no loop.

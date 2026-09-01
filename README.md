@@ -21,22 +21,56 @@ substitute in-plugin agents instead, e.g.
 `{ 'silent-failure': 'harness:pr-review', tests: 'harness:test-architect' }` — unlisted
 lens keys keep their default.
 
-## Quickstart
+## Getting started — pick your path
+
+**New here? Read [docs/guide.md](docs/guide.md)** — which command to use
+when, and what each one needs (short answer on prerequisites: only
+`/harness:pr` needs the GitHub CLI; everything else is plain git).
+
+**Path 1 — teammate of a project that already uses the harness: do nothing.**
+Clone the project, open Claude Code, accept the one-time marketplace/plugin
+prompt (the project's committed `.claude/settings.json` carries it). Done —
+`/harness:*` works.
+
+**Path 2 — just the engine, any machine, two commands:**
 
 ```bash
-# 1. Global layer + engine everywhere
-./global/install.sh
+claude plugin marketplace add juaninamilliom/agent-harness
+claude plugin install harness@agent-harness
+```
 
-# 2. New project
+`/harness:*` now works in every directory. Skills degrade gracefully without
+a scaffolded CLAUDE.md (repo-default branches, lockfile-detected installs,
+generic architects only).
+
+**Path 3 — full adoption (your machine + your projects):**
+
+```bash
+git clone https://github.com/juaninamilliom/agent-harness.git && cd agent-harness
+
+# 1. Global layer + engine everywhere (macOS-oriented: hooks use AppleScript;
+#    Linux users should skip this and take Path 2)
+./global/install.sh && ./global/doctor.sh
+
+# 2. Per project, once
 ./scaffold/init.sh ~/code/my-project "My Project"
-# then fill every <!-- FILL --> in the stamped CLAUDE.md
+# then fill every <!-- FILL --> in the stamped CLAUDE.md — the 15 minutes
+# that make the engine smart about YOUR project — and commit CLAUDE.md +
+# .claude/settings.json so teammates land on Path 1
 
-# 3. Codex (reduced port)
+# 3. Codex (reduced port), optional
 ./codex/install.sh
 ```
 
+Forking instead of consuming this marketplace? Re-point one line:
+`scaffold/settings.json`'s `extraKnownMarketplaces` repo.
+
+When a domain of your project earns its own expert agent, see **"Carving
+your domains"** at the top of `scaffold/agents/_domain-architect.template.md`.
+
 ## Layout
 
+- `docs/guide.md` — the field guide: which command when, prerequisites, FAQ
 - `docs/philosophy.md` — the workflow discipline, tool-agnostic
 - `docs/porting.md` — what maps between Claude Code and Codex
 - `plugins/harness/FROZEN.md` — rules that must not decay; `scripts/graph/check-frozen.sh` enforces

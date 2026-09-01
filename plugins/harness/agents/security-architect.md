@@ -238,7 +238,7 @@ logger.info(`Auth with key: ${apiKey.slice(0, 8)}...`);
 - [ ] Three-layer defense: detect → sanitize → wrap (see `prompt-security.util.ts`)
 - [ ] Code execution sandboxed via E2B (never local execution)
 - [ ] Tool responses are context-lean (summaries, not raw data)
-- **Deep review →** `ai-systems-architect`
+- **Deep review →** `harness:ai-systems-architect`
 
 ### Blockchain Security
 - [ ] Transaction signatures verified for every supported chain
