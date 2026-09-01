@@ -1,5 +1,9 @@
 # Carving your domains — read this before instantiating
 
+(Full how-to with worked examples, including craft architects for stacks the
+harness doesn't ship: docs/building-architects.md in the harness repo —
+https://github.com/juaninamilliom/agent-harness/blob/main/docs/building-architects.md)
+
 (Everything above the `---` line is guidance; delete it when you create a
 real architect from this template. While this text sits above the
 frontmatter, the file cannot be loaded as an agent — that is deliberate.)
