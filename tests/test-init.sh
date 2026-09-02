@@ -17,6 +17,7 @@ chk "domain template stamped"      'test -f "$SB/proj/.claude/agents/_domain-arc
 chk "craft template stamped"       'test -f "$SB/proj/.claude/agents/_craft-architect.template.md"'
 chk "env-verify template stamped"  'test -f "$SB/proj/.claude/skills/_env-verify.template/SKILL.md"'
 chk "risk patterns example"        'test -f "$SB/proj/.claude/risk-patterns.txt.example"'
+chk "graph-state dir gitignored"   'grep -qx ".claude/graph-state/" "$SB/proj/.gitignore"'
 
 echo "user edit" >> "$SB/proj/CLAUDE.md"
 ./scaffold/init.sh "$SB/proj" "My Project" > "$SB/init2.log" 2>&1 || true

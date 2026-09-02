@@ -1,6 +1,6 @@
 ---
 description: Graph plan. A strong lead partitions the codebase questions into 2-5 briefs; cheap read-only investigators return findings anchored on verbatim quotes; code dedupes, ranks and caps; one fresh refuter per finding checks the quote with the shell; one strong agent designs the plan; code checks its phases for fake edges. For work whose facts span several subsystems. /harness:plan is the control.
-allowed-tools: Workflow, Read, Grep, Glob, Bash(git:*), AskUserQuestion, TaskCreate, TaskList, TaskUpdate
+allowed-tools: Workflow, Read, Write, Grep, Glob, Bash(git:*), AskUserQuestion, TaskCreate, TaskList, TaskUpdate
 argument-hint: [description]
 ---
 
@@ -63,9 +63,11 @@ Workflow({
   scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/plan-graph.js",
   args: {
     requirements: "<the requirements, verbatim>",
-    criteria: "<acceptance criteria, or empty>",
+    criteria: ["<one acceptance criterion per entry>"],   // a newline-separated string is accepted too
+    constraints: ["<stack, non-goals, hard rules from CLAUDE.md>"],
     workingDir: "/abs/path/to/the/repo-root",   // the root that contains the components being planned
-    harnessRoot: "${CLAUDE_PLUGIN_ROOT}",       // the workflow gives refuters the check-quote script path from it
+    harnessRoot: "${CLAUDE_PLUGIN_ROOT}",       // REQUIRED - locates check-quote.sh for the refuters; the run throws without it
+    integrationBranch: "dev",                   // from CLAUDE.md "Integration branch"; recorded in the state for the execute-graph
     maxBriefs: 5,                       // 2-6; the lead may write fewer
     maxVerify: 25                       // findings verified, ranked by importance
   }
@@ -77,6 +79,13 @@ Optional: `investigatorModel` / `verifierModel` (default `sonnet`), `leadAgentTy
 1/1 — one anchored refuter; a vote of identical models is consensus, not evidence),
 `investigatorAgentTypes` (the read-only architects a brief may name; the workflow rejects
 anything else).
+
+**The return value is a `GraphState`** (`${CLAUDE_PLUGIN_ROOT}/schemas/graph-state.schema.json`)
+on every path — clean, partial, or an early exit. **Persist it before presenting
+anything:** set `run.id` to the Run ID from the tool result and `Write` the object as
+JSON to `<workingDir>/.claude/graph-state/<run id>.json` (the scaffold gitignores that
+directory). The state, not this chat, is what the next graph reads — the file is the
+handoff. If the directory does not exist, create it with the Write.
 
 What the script does, so you can read its logs:
 
@@ -95,7 +104,9 @@ What the script does, so you can read its logs:
    refuted).
 5. **Synthesize** — one strong agent designs the plan from the verified facts, cites
    `[Fn]`, escalates decisions, names `gaps` rather than guessing, and returns phases
-   with files and `dependsOn`. Code then adds a shared-file edge between phases that
+   with files, `dependsOn` and `refs` (the finding ids each phase rests on). Code
+   assigns positional ids (`B1..`, `F1..`, `P1..` — ids are the vocabulary of the state),
+   remaps `dependsOn` through the rename, adds a shared-file edge between phases that
    write one file with no edge, reports declared edges with no shared file as fake-edge
    candidates, and computes layers.
 
@@ -103,19 +114,21 @@ What the script does, so you can read its logs:
 
 In this order:
 
-1. **If `partial` is true, say so first** and name why: the lead returned nothing; an
-   investigator returned nothing (its brief is missing from the fact base — the log
-   names it); a refuter failed (`unverified`); the synthesizer returned nothing. Never
-   present a partial plan as complete.
-2. **Corrections to the briefing** — the plan's opening section. Where verified findings
+1. **If `run.partial` is true, say so first** and read `run.errors` for why: the lead
+   returned nothing; an investigator returned nothing (its brief has `coverage: null` —
+   missing from the fact base, not empty); a refuter failed (`unverified`); the
+   synthesizer returned nothing. Never present a partial plan as complete.
+2. **Corrections to the briefing** — the plan's opening section. Where verified facts
    contradicted the requirements, that is the first thing the user needs.
 3. **`plan`** — verbatim.
-4. **`decisions`** — product and money-scope questions a human must answer before code,
-   with the synthesizer's recommendation.
-5. **Refuted findings, with corrections** — what the investigators got wrong and what
-   the code actually says. This is the verify layer's receipt; if it is empty every run,
-   say so, because that means either the investigators are accurate or the refuters are
-   not refuting.
+4. **`humanDecisions`** — product and money-scope questions a human must answer before
+   code, with the synthesizer's recommendation. Ask each via `AskUserQuestion`, then
+   **write the answers back** into the state file as `humanDecisions[i].answer` — the
+   execute-graph reads answers from the state, never from this chat.
+5. **Refuted facts, with corrections** — what the investigators got wrong and what the
+   code actually says. This is the verify layer's receipt; if it is empty every run, say
+   so, because that means either the investigators are accurate or the refuters are not
+   refuting.
 6. **Unverified** — past the cap, or the refuter failed. Kept in the plan, not vouched
    for.
 7. **`gaps`** — facts the synthesizer needed and did not get. Each is a candidate brief
@@ -123,16 +136,18 @@ In this order:
 8. **Phases** — `layers`, `sharedFileEdgesAdded` (two phases were ordered for a file, not
    an artifact), and **`unbackedEdges`** — declared dependencies between phases that share
    no file. Each must name the artifact it carries; if it cannot, it is a fake edge and
-   the phases can run in parallel. Ask.
-9. **`overlaps`** and `coverage` — where the lead's partition failed and what each
-   investigator could not establish.
+   the phases can run in parallel. Ask. (An unbacked edge will also force an unnecessary
+   stacked PR once the execute-graph consumes this state.)
+9. **`lead.overlaps`** and each brief's `coverage` — where the lead's partition failed
+   and what each investigator could not establish.
 
 ## Step 5: Human gate, then tasks
 
 Wait for approval. Then offer tracked tasks exactly as `/harness:plan` Step 6 does, from
 `phases`: all of Layer 0 first, `addBlockedBy` from `edges` (declared and shared-file).
 Confirm each unbacked edge with the user before wiring it — re-adding a fake edge turns
-the graph back into the chain it started as.
+the graph back into the chain it started as. Tell the user where the state file is; it
+is the input to the execute-graph.
 
 ## Measuring the experiment
 

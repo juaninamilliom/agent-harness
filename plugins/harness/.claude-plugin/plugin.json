@@ -1,7 +1,7 @@
 {
   "name": "harness",
   "displayName": "Harness",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "The engine: workflow skills, generic architects and reviewers, graph verification",
   "author": {
     "name": "Juan"
