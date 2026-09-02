@@ -1,7 +1,7 @@
 # Graph State — Design
 
 **Date:** 2026-09-02
-**Status:** Draft — the spine of the graph-engineering program; everything else hangs off it
+**Status:** Approved — the spine of the graph-engineering program; everything else hangs off it. The three open questions were answered by the owner on 2026-09-02 (see "Decisions" at the end).
 
 ## Purpose
 
@@ -70,11 +70,14 @@ GraphState
 │     status: 'proposed' | 'validated' | 'conflict' | 'human',
 │     conflict?: string                 /* set by the consistency validator; cleared by repair */ }
 │
-├ contract                              // the shared naming ground — what v2 lacked
+├ contract                              // the shared naming ground — what v2 lacked. An OPEN MAP of named slices;
+│                                       // v1 ships these four, sized for web applications (the tool's premise).
 │   api: Endpoint[]    { id: E#, method, path, auth: 'none' | 'session', request: string, response: string, errors: string[], reads: T#[], writes: T#[], phase?: P# }
 │   data: Table[]      { id: T#, name, columns: [{ name, type, nullable, ref?: T# }], indexes: string[], phase?: P# }
 │   ui: Route[]        { id: R#, path, purpose, components: string[], reads: E#[], writes: E#[], phase?: P# }
 │   types: Shared[]    { id: Y#, name, shape: string, usedBy: (E# | R#)[] }
+│   [slice: string]: { id, ... }[]      // future: a project may declare its own (infra, mobile, cli). The integrity
+│                                       // check needs only `id` and id-typed refs, so it works on any slice unchanged.
 │
 ├ plan: string                          // the synthesizer's markdown; cites ids throughout
 ├ phases: Phase[]
@@ -87,9 +90,12 @@ GraphState
 ├ gaps: string[]                        // facts the synthesizer needed and did not get
 ├ humanDecisions: [{ question, recommendation, why?, answer?: string }]   // today's `decisions` — renamed; a human answers before code
 │
-├ artifacts: { [P#]: Artifact }         // execute-graph
-│   { status: 'pending' | 'in-progress' | 'implemented' | 'validated' | 'failed' | 'escalated',
-│     worktree?: string, branch?: string, commit?: string, filesWritten: string[], attempts: number }
+├ artifacts: { [P#]: Artifact }         // execute-graph. The graph NEVER merges — `pr-open` is terminal.
+│   { status: 'pending' | 'blocked' | 'in-progress' | 'implemented' | 'validated' | 'pr-open' | 'failed' | 'escalated',
+│     base: string                       /* 'dev' for an independent phase; the parent phase's branch for a stacked one */,
+│     worktree?: string, branch?: string, commit?: string, filesWritten: string[], attempts: number,
+│     pr?: { number: number, url: string, base: string },
+│     blockedOn?: P#[]                   /* deps in two different stacks: wait for their PRs to merge, then base on dev */ }
 ├ validations: Validation[]             // append-only
 │   { id: V#, phase: P#, node: 'build' | 'review' | 'simplify' | 'simulate', attempt: number,
 │     verdict: 'pass' | 'fail' | 'unverified',
@@ -115,13 +121,16 @@ GraphState
 | **Implementer** (one per phase) | its `phase`, the `contract` items its `refs` name, the `facts`/`decisions` its `refs` name, `brief.constraints` | `artifacts[P#]` |
 | **Validation nodes** | the phase's diff + the `contract` items it should satisfy; `simulate` also gets `brief.criteria` and the CLAUDE.md components table | `validations[]` |
 | **Fix node** (fresh) | its phase, the failing `validation`'s confirmed findings, the `contract` items named — **never the implementer's transcript** | `repairs[]`, `artifacts[P#].attempts` |
+| **PR node** (code + `gh`) | the phase's branch, its `base`, its `commit` message, the `validations` that passed | `artifacts[P#].pr`, `status = pr-open` |
+| **Human** (the operator) | `humanDecisions[]` via the skill's `AskUserQuestion`; the open PRs | `humanDecisions[].answer`; merges — the only writer of merges |
 
 A node never receives the whole state. A node never receives another node's
 transcript. That is F1 generalized.
 
 ## Transitions and edges
 
-- **Fixed:** router → lead/specialists → integrity → validator → synthesizer → post-pass. Execute: layer *n* implementers → barrier → validation chain → merge → layer *n+1*.
+- **Fixed:** router → lead/specialists → integrity → validator → synthesizer → post-pass. Execute: layer *n* implementers → barrier → validation chain → PR node → layer *n+1*.
+- **PR stacking — the graph never merges.** Every phase ends at `pr-open`; the operator reviews and merges. The stack topology *is* the plan's edges: a phase with no `dependsOn` branches off `dev` and gets an independent PR; a phase that depends on another branches off **that phase's branch** and its PR uses that branch as base — a stacked PR, so the cascading case (API → UI) reads as a chain of PRs each showing only its own diff. Stacks are chains: a phase whose dependencies sit in two different stacks cannot base on both, so it is marked `blocked` with `blockedOn` and waits until those PRs merge, then bases on `dev`. Reported, never guessed. This makes the fake-edge post-pass load-bearing twice: an unbacked edge would force an unnecessary stack.
 - **Conditional:** `run.mode` picks investigation vs decision partition. `validations[].verdict` picks merge vs repair vs escalate. Early exits (no briefs, no findings, no decisions) end the run `partial` with a named `error`.
 - **Cyclic — bounded, on confirmed failure only:**
   - Planning: a `decision` marked `conflict` goes back to its domain specialist **once** with the conflict text; still conflicting → `status: human`, into `humanDecisions`.
@@ -149,16 +158,17 @@ the scaffold.
 | F11 silence ≠ agreement; three outcomes | Unchanged and now structural: `unverified` is a first-class verdict in `validations`, never promoted. |
 | "No automatic retries" (docs/plan-graph.md) | Narrowed to what it meant: no retry on silence or infra. Bounded repair on confirmed findings is a conditional edge on verified state. |
 | Worktrees | Implementers create real worktrees by the harness convention (`<repo-parent>/<repo-dir>-worktrees/<P#>`), never the tool's `isolation` flag. |
+| `/harness:pr` never targets `main`; humans merge | Preserved and extended: the execute-graph opens PRs (independent or stacked) and **never merges**. The operator is the only writer of merges. |
 
 ## What this unlocks, in order
 
 1. **plan-graph today** emits ~40% of this (`facts`, `phases`, `edges`, `layers`, the post-pass fields). First change: it emits a `GraphState` and the skill persists it. No behavior change.
 2. **plan-graph greenfield mode**: the router, domain specialists writing `decisions` + `contract`, the integrity check, the consistency validator, the one repair edge, the same synthesizer and post-pass.
-3. **execute-graph**: consumes `layers`; implementers, barrier, validation chain, bounded repair, merge, PR.
+3. **execute-graph**: consumes `layers` and `edges`; implementers, barrier, validation chain, bounded repair, then one PR per phase — independent off `dev`, or stacked on the parent phase's branch. Never merges.
 4. **The `simulate` node**: boot the dev command from the components table, hit every `E#` the phase owns, snapshot every `R#` it owns, run the suite where trusted.
 
-## Open questions for the owner
+## Decisions (answered by the owner, 2026-09-02)
 
-- **Contract granularity for v1.** The `api` / `data` / `ui` / `types` slices above are sized for a web app. Is that the right floor, or should `contract` be an open map of named slices so a CLI or a mobile app can declare its own?
-- **Where `humanDecisions` get answered.** In the skill (AskUserQuestion, then written back to state) or in the state file by hand before the next graph runs?
-- **Merge strategy in execute-graph.** Merge each phase's branch into the integration branch as it validates, or merge a whole layer at the barrier? The former surfaces conflicts earlier; the latter keeps the integration branch buildable at layer boundaries.
+- **Contract granularity.** v1 ships `api` / `data` / `ui` / `types` — the tool's premise is web applications (frontend, backend API, data, UI). `contract` is an open map so the granularity can grow as real projects show what they need; nobody knows the right slices for other domains until they are used. **README follow-up, when the contract ships in code:** a line saying that projects outside the web-app premise (infra, mobile, CLI) may need to declare their own contract slices.
+- **`humanDecisions` are answered by the human in the loop** — whoever runs the harness. The skill asks via `AskUserQuestion` and writes the answer into the state so the execute-graph reads it from state, never from the chat.
+- **Nothing is merged by the graph.** Every phase ends in PR state, never merge state. Independent phases get independent PRs off `dev`; cascading phases (API → UI) get **stacked PRs**, each based on the branch of the phase it depends on. The operator merges. See "PR stacking" under Transitions.
