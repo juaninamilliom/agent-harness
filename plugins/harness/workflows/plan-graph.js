@@ -1,6 +1,6 @@
 export const meta = {
   name: 'plan-graph',
-  description: 'Graph plan: a lead partitions the investigation -> cheap investigators return findings anchored on verbatim quotes -> reduce/rank/cap in code -> one fresh refuter per finding -> one strong agent designs the plan -> fake-edge check on its phases',
+  description: 'Graph plan: a lead partitions the investigation -> cheap investigators return findings anchored on verbatim quotes -> reduce/rank/cap in code -> one fresh refuter per finding -> one strong agent designs the plan -> fake-edge check on its phases. Returns a GraphState (schemas/graph-state.schema.json) on every path.',
   whenToUse: 'Planning work whose facts are spread across several subsystems. The graph gathers and verifies the FACTS in parallel; the DESIGN is done once, by one agent. Anything one reader can hold in context is /plan.',
   phases: [
     { title: 'Lead', detail: 'one strong agent reads the code and writes 2-5 partitioned investigation briefs' },
@@ -105,6 +105,7 @@ const PHASE = {
     dependsOn: { type: 'array', items: { type: 'string' }, description: 'ids of phases whose ARTIFACT this phase consumes. Not "should come after" - what it cannot be written without.' },
     owner: { type: 'string', description: 'domain owner, e.g. payments, security, frontend' },
     moneyScope: { type: 'boolean', description: 'touches charge / fee / payout / balance / wallet / order placement' },
+    refs: { type: 'array', items: { type: 'string' }, description: 'the finding ids [Fn] this phase rests on - what it reuses, what it must respect, what it fills' },
     notes: { type: 'string' },
   },
   required: ['id', 'title', 'commit', 'files', 'dependsOn', 'owner'],
@@ -130,7 +131,7 @@ const PLAN_SCHEMA = {
       type: 'array',
       items: {
         type: 'object',
-        properties: { risk: { type: 'string' }, likelihood: { type: 'string' }, impact: { type: 'string' }, mitigation: { type: 'string' }, findings: { type: 'array', items: { type: 'string' } } },
+        properties: { risk: { type: 'string' }, likelihood: { type: 'string' }, impact: { type: 'string' }, mitigation: { type: 'string' }, refs: { type: 'array', items: { type: 'string' }, description: 'finding ids [Fn] this risk is tied to' } },
         required: ['risk', 'mitigation'],
         additionalProperties: false,
       },
@@ -147,10 +148,19 @@ const PLAN_SCHEMA = {
 // ---------------------------------------------------------------------------
 
 const requirements = String((args && args.requirements) || '').trim()
-const criteria = String((args && args.criteria) || '').trim()
+// Acceptance criteria live in the state one per entry - validators cite them by index.
+// A string is accepted too (the skill has always passed one) and split on newlines.
+const criteriaList = (Array.isArray(args && args.criteria) ? args.criteria : String((args && args.criteria) || '').split('\n')).map((c) => String(c).trim()).filter(Boolean)
+const criteria = criteriaList.join('\n')
+const constraints = (Array.isArray(args && args.constraints) ? args.constraints : []).map((c) => String(c).trim()).filter(Boolean)
 const workingDir = (args && args.workingDir) || ''
-const SCRIPTS = (args && args.harnessRoot ? args.harnessRoot : './.claude') + '/scripts/graph'
+const harnessRoot = String((args && args.harnessRoot) || '').trim()
+const integrationBranch = String((args && args.integrationBranch) || '').trim()
+const runId = String((args && args.runId) || '')
 if (!requirements) throw new Error('args.requirements is required - the plan needs something to plan')
+// No fallback: the old './.claude' default resolved to nothing on disk and degraded silently.
+if (!harnessRoot) throw new Error('args.harnessRoot is required - it locates check-quote.sh')
+const SCRIPTS = harnessRoot + '/scripts/graph'
 
 const intArg = (name, dflt, min, max) => {
   const raw = args && args[name]
@@ -251,6 +261,50 @@ function layer(nodes, edgeList) {
 }
 
 // ---------------------------------------------------------------------------
+// THE STATE. Every path out of this script - clean, partial, early exit - returns a
+// GraphState (schemas/graph-state.schema.json): the object the invoking skill persists
+// to .claude/graph-state/<run id>.json and the next graph reads as args.state. Never
+// the chat. Sections this graph does not write (decisions, contract, artifacts,
+// validations, repairs) are present and empty so a consumer can rely on the shape.
+// ---------------------------------------------------------------------------
+
+const stateBase = () => ({
+  version: 1,
+  run: { id: runId, graph: 'plan-graph', mode: 'existing', workingDir, harnessRoot, integrationBranch, partial: false, errors: [], counts: {} },
+  brief: { requirements, criteria: criteriaList, constraints },
+  lead: { summary: '', notPartitioned: [], overlaps: [] },
+  briefs: [],
+  facts: [],
+  decisions: [],
+  contract: {},
+  plan: '',
+  phases: [],
+  edges: [],
+  layers: [],
+  sharedFileEdgesAdded: [],
+  unbackedEdges: [],
+  danglingDeps: [],
+  risks: [],
+  gaps: [],
+  humanDecisions: [],
+  outOfScope: [],
+  artifacts: {},
+  validations: [],
+  repairs: [],
+})
+// Assemble a state from the base plus whatever this path produced; `run` merges.
+const finish = (over) => { const base = stateBase(); return { ...base, ...over, run: { ...base.run, ...(over.run || {}) } } }
+// Drop undefined-valued keys so the state round-trips through JSON unchanged.
+const compact = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined))
+const leadOut = (l, overlaps) => ({ summary: String((l && l.summary) || ''), notPartitioned: (l && l.notPartitioned) || [], overlaps: overlaps || [] })
+// coverage is null when the investigator returned nothing: a missing investigator is
+// not an investigator with no findings, and the state must say which it was.
+const briefsOut = (bs, inv) => bs.map((b, i) => ({
+  id: b.id, title: b.title, objective: b.objective, lens: b.lens, boundaries: b.boundaries, filesHint: b.filesHint, agentType: b.agentType,
+  coverage: inv && inv[i] && typeof inv[i].coverage === 'string' ? inv[i].coverage : null,
+}))
+
+// ---------------------------------------------------------------------------
 // LAYER 0 - LEAD. One strong agent decides what must be true and partitions it.
 // Anthropic's research system: "without detailed task descriptions, agents duplicate
 // work, leave gaps"; the swarm study: agents that differ only in persona converge on
@@ -292,27 +346,28 @@ const lead = await agent(
 
 if (!lead || !Array.isArray(lead.briefs) || !lead.briefs.length) {
   log('WARNING: the lead returned nothing - no briefs, no investigation, no plan')
-  return { partial: true, error: 'lead returned no briefs', counts: { briefs: 0 }, plan: '' }
+  return finish({ run: { partial: true, errors: ['lead returned no briefs'], counts: { briefs: 0 } } })
 }
 
-// Validate and normalize the briefs in code.
-const seenIds = new Set()
+// Validate and normalize the briefs in code. Ids are the vocabulary of the state, so
+// the code assigns them - B1.. in the lead's order, whatever the lead wrote.
+const renamedBriefs = []
 const briefs = lead.briefs.slice(0, MAX_BRIEFS).map((b, i) => {
-  let id = String(b.id || `B${i + 1}`)
-  if (seenIds.has(id)) id = `${id}-${i + 1}`
-  seenIds.add(id)
+  const id = `B${i + 1}`
+  if (b.id && String(b.id) !== id) renamedBriefs.push(`${b.id}->${id}`)
   const filesHint = (b.filesHint || []).map(normPath)
   let agentType = b.agentType ? String(b.agentType) : DEFAULT_INVESTIGATOR
   if (agentType !== DEFAULT_INVESTIGATOR && !READ_ONLY_ARCHITECTS.includes(agentType)) {
     log(`brief ${id}: agentType "${agentType}" is not on the read-only allowlist - running as ${DEFAULT_INVESTIGATOR}`)
     agentType = DEFAULT_INVESTIGATOR
   }
-  return { ...b, id, filesHint, agentType }
+  return { ...b, id, boundaries: String(b.boundaries || ''), filesHint, agentType }
 })
+if (renamedBriefs.length) log(`Briefs renamed to positional ids: ${renamedBriefs.join(', ')}`)
 if (lead.briefs.length > MAX_BRIEFS) log(`Lead wrote ${lead.briefs.length} briefs; running the first ${MAX_BRIEFS} (maxBriefs)`)
 if (briefs.length < 2) {
   log(`WARNING: the lead wrote ${briefs.length} brief - one investigator is not a graph. Use /plan.`)
-  return { partial: true, error: 'fewer than two briefs', counts: { briefs: briefs.length }, lead, plan: '' }
+  return finish({ run: { partial: true, errors: ['fewer than two briefs'], counts: { briefs: briefs.length } }, lead: leadOut(lead, []), briefs: briefsOut(briefs, null) })
 }
 
 // Overlap check - the partition is the lead's job, but code can see when it failed.
@@ -372,11 +427,13 @@ const invRaw = await parallel(
 // that returned an EMPTY array said "nothing there"; one that returned null said nothing.
 // Never count silence as agreement.
 const returned = invRaw.filter(Boolean).length
+const deadInvestigators = briefs.filter((_, i) => !invRaw[i]).map((b) => b.id)
 let partial = returned < briefs.length
 if (partial) {
-  const dead = briefs.filter((_, i) => !invRaw[i]).map((b) => b.id)
-  log(`WARNING: ${briefs.length - returned} of ${briefs.length} investigators returned nothing (${dead.join(', ')}) - THIS PLAN IS PARTIAL`)
+  log(`WARNING: ${briefs.length - returned} of ${briefs.length} investigators returned nothing (${deadInvestigators.join(', ')}) - THIS PLAN IS PARTIAL`)
 }
+// Errors are named in the state, never only in the log.
+const errors = deadInvestigators.length ? [`${deadInvestigators.length} of ${briefs.length} investigators returned nothing: ${deadInvestigators.join(', ')}`] : []
 
 // ---------------------------------------------------------------------------
 // LAYER 2 - REDUCE. Plain code. No model. No tokens.
@@ -419,7 +476,10 @@ if (pastCap.length) log(`NOT VERIFIED (past cap ${MAX_VERIFY}): ${pastCap.length
 
 if (!deduped.length) {
   log('WARNING: no findings at all - nothing to verify or synthesize')
-  return { partial: true, error: 'no findings', counts: { briefs: briefs.length, investigatorsReturned: returned, findingsRaw: 0 }, lead, briefs, plan: '' }
+  return finish({
+    run: { partial: true, errors: [...errors, 'no findings'], counts: { briefs: briefs.length, investigatorsReturned: returned, overlaps: overlaps.length, findingsRaw: 0 } },
+    lead: leadOut(lead, overlaps), briefs: briefsOut(briefs, invRaw),
+  })
 }
 
 // ---------------------------------------------------------------------------
@@ -488,6 +548,8 @@ const refuted = settled.filter((f) => f.status === 'refuted')
 const unverifiedInfra = settled.filter((f) => f.status === 'unverified')
 const verifyPartial = unverifiedInfra.length > 0 || settled.length < toVerify.length
 partial = partial || verifyPartial
+if (unverifiedInfra.length) errors.push(`${unverifiedInfra.length} finding(s) unverified - the refuter failed`)
+if (settled.length < toVerify.length) errors.push(`${toVerify.length - settled.length} finding(s) lost their verify node`)
 log(`Verify: ${settled.length} judged -> ${confirmed.length} confirmed, ${refuted.length} refuted, ${unverifiedInfra.length} unverified (refuter failed)`)
 refuted.forEach((f) => log(`  refuted ${f.id} ${f.file}:${f.line} - ${(f.correction || f.evidence).slice(0, 140)}`))
 
@@ -527,14 +589,15 @@ const synth = await agent(
     `acceptance criteria, say so, citing [Fn].\n` +
     `2. Design: the unified approach. Where findings or recommendations conflict, resolve it explicitly ` +
     `and say why. You are the only place judgment happens; do not defer it.\n` +
-    `3. Phases with commit boundaries. Each phase lists the files it writes (repo-relative, real) and ` +
-    `dependsOn: only phases whose ARTIFACT it consumes - not "should come after". Two phases that write ` +
-    `the same file need an order; say which and why. Keep the mock registrations, migrations and the ` +
-    `flag with the code that needs them - an intermediate commit must build.\n` +
+    `3. Phases with commit boundaries. Each phase lists the files it writes (repo-relative, real), ` +
+    `dependsOn: only phases whose ARTIFACT it consumes - not "should come after" - and refs: the finding ` +
+    `ids [Fn] it rests on. Two phases that write the same file need an order; say which and why. Keep ` +
+    `the mock registrations, migrations and the flag with the code that needs them - an intermediate ` +
+    `commit must build.\n` +
     `4. decisions: product or money-scope questions a human must answer before code, each with your ` +
     `recommendation and why. Mark moneyScope on every phase that places orders or touches charges, fees, ` +
     `payouts, balances or wallets.\n` +
-    `5. risks with mitigations, each tied to finding ids.\n` +
+    `5. risks with mitigations, each tied to finding ids in refs.\n` +
     `6. gaps: facts you needed and did not get. Name them; never guess them.\n` +
     `7. plan: the full markdown, in the /plan output format (Contributing findings, Architectural ` +
     `decisions, Acceptance criteria, Implementation phases, Cross-domain dependencies, Risks). Cite ` +
@@ -558,15 +621,30 @@ if (!synth) {
 //     and the phases can run in parallel. Reported, not deleted - a human decides.
 // ---------------------------------------------------------------------------
 
-const phases = (synth && Array.isArray(synth.phases) ? synth.phases : []).map((p, i) => ({
-  ...p, id: String(p.id || `P${i + 1}`), uid: String(p.id || `P${i + 1}`), files: (p.files || []).map(normPath), dependsOn: (p.dependsOn || []).map(String),
-}))
-const phaseIds = new Set(phases.map((p) => p.uid))
-let edges = []
+// Phase ids are the vocabulary too: P1.. in the synthesizer's order, with dependsOn
+// remapped through the rename. A dependsOn the remap cannot resolve keeps its original
+// name and is reported as dangling below - never guessed.
+const synthPhases = synth && Array.isArray(synth.phases) ? synth.phases : []
+const phaseRename = new Map(synthPhases.map((p, i) => [String(p.id || `P${i + 1}`), `P${i + 1}`]))
+const renamedPhases = [...phaseRename.entries()].filter(([from, to]) => from !== to).map(([from, to]) => `${from}->${to}`)
+if (renamedPhases.length) log(`Phases renamed to positional ids: ${renamedPhases.join(', ')}`)
 const danglingDeps = []
+const phases = synthPhases.map((p, i) => {
+  const id = `P${i + 1}`
+  const dependsOn = []
+  for (const d of p.dependsOn || []) {
+    const to = phaseRename.get(String(d))
+    if (to) dependsOn.push(to)
+    else danglingDeps.push({ phase: id, dependsOn: String(d) })
+  }
+  return {
+    id, uid: id, title: String(p.title || ''), commit: String(p.commit || ''), files: (p.files || []).map(normPath), dependsOn,
+    owner: String(p.owner || ''), moneyScope: p.moneyScope, refs: Array.isArray(p.refs) ? p.refs.map(String) : [], notes: p.notes,
+  }
+})
+let edges = []
 for (const p of phases) {
   for (const d of p.dependsOn) {
-    if (!phaseIds.has(d)) { danglingDeps.push({ phase: p.uid, dependsOn: d }); continue }
     if (d === p.uid) continue
     edges.push({ from: d, to: p.uid, reason: 'declared' })
   }
@@ -603,35 +681,39 @@ if (accounted !== deduped.length) {
   log(`WARNING: counts do not reconcile - ${deduped.length} findings but ${accounted} accounted for (${deduped.length - accounted} vanished)`)
 }
 
+if (!synth) errors.push('synthesizer returned nothing')
+if (accounted !== deduped.length) errors.push(`counts do not reconcile: ${deduped.length - accounted} finding(s) vanished`)
+
 const agentCalls = 1 + briefs.length + toVerify.length * VOTES + 1
-return {
-  partial: partial || !synth || accounted !== deduped.length,
-  counts: {
-    briefs: briefs.length, investigatorsReturned: returned, overlaps: overlaps.length,
-    findingsRaw: rawFindings.length, findings: deduped.length, agreed: deduped.filter((f) => f.agreedBy.length > 1).length,
-    verified: settled.length, confirmed: confirmed.length, refuted: refuted.length, unverified: unverifiedInfra.length, pastCap: pastCap.length,
-    phases: phases.length, declaredEdges: edges.filter((e) => e.reason === 'declared').length, sharedFileEdgesAdded: sharedFileEdgesAdded.length, unbackedEdges: unbackedEdges.length,
-    agentCalls,
+return finish({
+  run: {
+    partial: partial || !synth || accounted !== deduped.length,
+    errors,
+    counts: {
+      briefs: briefs.length, investigatorsReturned: returned, overlaps: overlaps.length,
+      findingsRaw: rawFindings.length, findings: deduped.length, agreed: deduped.filter((f) => f.agreedBy.length > 1).length,
+      verified: settled.length, confirmed: confirmed.length, refuted: refuted.length, unverified: unverifiedInfra.length, pastCap: pastCap.length,
+      phases: phases.length, declaredEdges: edges.filter((e) => e.reason === 'declared').length, sharedFileEdgesAdded: sharedFileEdgesAdded.length, unbackedEdges: unbackedEdges.length,
+      agentCalls,
+    },
   },
-  lead: { summary: lead.summary, notPartitioned: lead.notPartitioned || [] },
-  briefs: briefs.map((b) => ({ id: b.id, title: b.title, objective: b.objective, lens: b.lens, agentType: b.agentType, filesHint: b.filesHint })),
-  overlaps,
-  coverage: invRaw.map((r, i) => ({ brief: briefs[i].id, coverage: r ? r.coverage : null })),
-  findings: [
-    ...confirmed.map((f) => ({ ...f })),
-    ...refuted.map((f) => ({ ...f })),
-    ...unverifiedInfra.map((f) => ({ ...f })),
-    ...pastCap.map((f) => ({ ...f, status: 'past-cap' })),
+  lead: leadOut(lead, overlaps),
+  briefs: briefsOut(briefs, invRaw),
+  facts: [
+    ...confirmed.map((f) => compact(f)),
+    ...refuted.map((f) => compact(f)),
+    ...unverifiedInfra.map((f) => compact(f)),
+    ...pastCap.map((f) => compact({ ...f, status: 'past-cap' })),
   ],
-  plan: synth ? synth.plan : '',
-  phases,
+  plan: synth ? String(synth.plan || '') : '',
+  phases: phases.map(({ uid, ...p }) => compact(p)),
   edges,
   layers: layered.layers,
   sharedFileEdgesAdded,
   unbackedEdges,
   danglingDeps,
-  decisions: synth ? synth.decisions : [],
-  risks: synth ? synth.risks : [],
+  risks: synth ? (synth.risks || []).map((r) => compact({ ...r, refs: Array.isArray(r.refs) ? r.refs.map(String) : [] })) : [],
   gaps: synth ? synth.gaps || [] : [],
+  humanDecisions: synth ? (synth.decisions || []).map((d) => compact(d)) : [],
   outOfScope: synth ? synth.outOfScope || [] : [],
-}
+})

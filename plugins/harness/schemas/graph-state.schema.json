@@ -1,0 +1,243 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/juaninamilliom/agent-harness/plugins/harness/schemas/graph-state.schema.json",
+  "title": "GraphState",
+  "description": "The shared state that crosses between harness graphs as args.state and is persisted by the invoking skill to <workingDir>/.claude/graph-state/<run.id>.json. Ids are the vocabulary: every cross-reference is an id, and referential integrity is checked in code at every fan-in. A node receives a projection of this object, never the whole, never a transcript. Design: docs/superpowers/specs/2026-09-02-graph-state-design.md. Workflow scripts cannot import this file; each embeds the slices it enforces at its agent() boundaries, and tests/plan-graph.smoke.mjs validates the emitted state against this file with tests/schema-check.mjs (a deliberately small validator - keep this schema inside the subset it supports).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "run", "brief", "lead", "briefs", "facts", "decisions", "contract", "plan", "phases", "edges", "layers", "sharedFileEdgesAdded", "unbackedEdges", "danglingDeps", "risks", "gaps", "humanDecisions", "outOfScope", "artifacts", "validations", "repairs"],
+  "properties": {
+    "version": { "const": 1 },
+    "run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "graph", "mode", "workingDir", "harnessRoot", "integrationBranch", "partial", "errors", "counts"],
+      "properties": {
+        "id": { "type": "string", "description": "the Workflow run id of the graph that last wrote; the skill fills it from the tool result when it persists" },
+        "graph": { "enum": ["plan-graph", "execute-graph"] },
+        "mode": { "enum": ["existing", "greenfield"] },
+        "workingDir": { "type": "string" },
+        "harnessRoot": { "type": "string" },
+        "integrationBranch": { "type": "string" },
+        "partial": { "type": "boolean", "description": "any node missing, any verdict unverified, any early exit" },
+        "errors": { "type": "array", "items": { "type": "string" }, "description": "named, never silent" },
+        "counts": { "type": "object", "additionalProperties": { "type": "integer" }, "description": "reconciliation counts - briefs, findingsRaw -> findings -> verified -> confirmed/refuted/unverified/pastCap, phases, edges, agentCalls" }
+      }
+    },
+    "brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirements", "criteria", "constraints"],
+      "properties": {
+        "requirements": { "type": "string" },
+        "criteria": { "type": "array", "items": { "type": "string" }, "description": "acceptance criteria, one per entry - validators cite them by index" },
+        "constraints": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "lead": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["summary", "notPartitioned", "overlaps"],
+      "properties": {
+        "summary": { "type": "string" },
+        "notPartitioned": { "type": "array", "items": { "type": "string" } },
+        "overlaps": { "type": "array", "items": { "$ref": "#/$defs/overlap" }, "description": "brief pairs whose filesHint share ground - the partition failed there" }
+      }
+    },
+    "briefs": { "type": "array", "items": { "$ref": "#/$defs/brief" } },
+    "facts": { "type": "array", "items": { "$ref": "#/$defs/fact" } },
+    "decisions": { "type": "array", "items": { "$ref": "#/$defs/decision" } },
+    "contract": {
+      "type": "object",
+      "description": "an OPEN MAP of named slices; v1 ships api / data / ui / types for the web-app premise. Every item carries an id; the integrity check needs nothing else.",
+      "additionalProperties": { "type": "array", "items": { "$ref": "#/$defs/contractItem" } }
+    },
+    "plan": { "type": "string" },
+    "phases": { "type": "array", "items": { "$ref": "#/$defs/phase" } },
+    "edges": { "type": "array", "items": { "$ref": "#/$defs/edge" } },
+    "layers": { "type": "array", "items": { "type": "array", "items": { "$ref": "#/$defs/phaseId" } } },
+    "sharedFileEdgesAdded": { "type": "array", "items": { "$ref": "#/$defs/sharedFileEdge" } },
+    "unbackedEdges": { "type": "array", "items": { "$ref": "#/$defs/edgeRef" } },
+    "danglingDeps": { "type": "array", "items": { "$ref": "#/$defs/danglingDep" } },
+    "risks": { "type": "array", "items": { "$ref": "#/$defs/risk" } },
+    "gaps": { "type": "array", "items": { "type": "string" } },
+    "humanDecisions": { "type": "array", "items": { "$ref": "#/$defs/humanDecision" } },
+    "outOfScope": { "type": "array", "items": { "type": "string" } },
+    "artifacts": { "type": "object", "additionalProperties": { "$ref": "#/$defs/artifact" } },
+    "validations": { "type": "array", "items": { "$ref": "#/$defs/validation" } },
+    "repairs": { "type": "array", "items": { "$ref": "#/$defs/repair" } }
+  },
+  "$defs": {
+    "briefId": { "type": "string", "pattern": "^B[0-9]+$" },
+    "factId": { "type": "string", "pattern": "^F[0-9]+$" },
+    "decisionId": { "type": "string", "pattern": "^D[0-9]+$" },
+    "phaseId": { "type": "string", "pattern": "^P[0-9]+$" },
+    "validationId": { "type": "string", "pattern": "^V[0-9]+$" },
+    "repairId": { "type": "string", "pattern": "^X[0-9]+$" },
+    "ref": { "type": "string", "pattern": "^[A-Z][0-9]+$", "description": "any id in the vocabulary: F# D# E# T# R# Y# P# - a slice added later brings its own letter" },
+    "overlap": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["a", "b", "files"],
+      "properties": { "a": { "$ref": "#/$defs/briefId" }, "b": { "$ref": "#/$defs/briefId" }, "files": { "type": "array", "items": { "type": "string" } } }
+    },
+    "brief": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "objective", "lens", "boundaries", "filesHint", "agentType", "coverage"],
+      "properties": {
+        "id": { "$ref": "#/$defs/briefId" },
+        "title": { "type": "string" },
+        "objective": { "type": "string" },
+        "lens": { "type": "string" },
+        "boundaries": { "type": "string" },
+        "filesHint": { "type": "array", "items": { "type": "string" } },
+        "agentType": { "type": "string" },
+        "coverage": { "type": ["string", "null"], "description": "what the investigator read and could not establish; null when the investigator returned nothing - a missing investigator is not an investigator with no findings" }
+      }
+    },
+    "fact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "claim", "file", "line", "quote", "kind", "importance", "confidence", "agreedBy", "outOfScope", "status"],
+      "properties": {
+        "id": { "$ref": "#/$defs/factId" },
+        "claim": { "type": "string" },
+        "file": { "type": "string" },
+        "line": { "type": "integer" },
+        "quote": { "type": "string", "description": "verbatim - the anchor" },
+        "kind": { "enum": ["fact", "constraint", "risk", "gap", "recommendation"] },
+        "importance": { "enum": ["critical", "high", "medium", "low"] },
+        "confidence": { "enum": ["high", "medium", "low"] },
+        "why": { "type": "string" },
+        "briefId": { "$ref": "#/$defs/briefId" },
+        "agreedBy": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/briefId" } },
+        "outOfScope": { "type": "boolean" },
+        "status": { "enum": ["confirmed", "refuted", "unverified", "past-cap"] },
+        "voters": { "type": "integer" },
+        "refutes": { "type": "integer" },
+        "evidence": { "type": "string" },
+        "correction": { "type": "string" }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "domain", "question", "options", "recommendation", "why", "dependsOn", "cites", "status"],
+      "properties": {
+        "id": { "$ref": "#/$defs/decisionId" },
+        "domain": { "enum": ["data", "api", "ui", "auth", "test", "infra", "other"] },
+        "question": { "type": "string" },
+        "options": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["name", "tradeoffs"], "properties": { "name": { "type": "string" }, "tradeoffs": { "type": "string" } } } },
+        "recommendation": { "type": "string" },
+        "why": { "type": "string" },
+        "dependsOn": { "type": "array", "items": { "$ref": "#/$defs/decisionId" } },
+        "cites": { "type": "array", "items": { "type": "integer" }, "description": "brief.criteria indexes" },
+        "status": { "enum": ["proposed", "validated", "conflict", "human"] },
+        "conflict": { "type": "string" }
+      }
+    },
+    "contractItem": {
+      "type": "object",
+      "required": ["id"],
+      "properties": { "id": { "$ref": "#/$defs/ref" } },
+      "additionalProperties": true
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "title", "commit", "files", "dependsOn", "owner", "refs"],
+      "properties": {
+        "id": { "$ref": "#/$defs/phaseId" },
+        "title": { "type": "string" },
+        "commit": { "type": "string" },
+        "files": { "type": "array", "items": { "type": "string" } },
+        "dependsOn": { "type": "array", "items": { "$ref": "#/$defs/phaseId" } },
+        "owner": { "type": "string" },
+        "moneyScope": { "type": "boolean" },
+        "refs": { "type": "array", "items": { "$ref": "#/$defs/ref" }, "description": "the facts / decisions / contract items this phase rests on" },
+        "notes": { "type": "string" }
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "reason"],
+      "properties": { "from": { "$ref": "#/$defs/phaseId" }, "to": { "$ref": "#/$defs/phaseId" }, "reason": { "enum": ["declared", "shared-file"] }, "files": { "type": "array", "items": { "type": "string" } } }
+    },
+    "edgeRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to"],
+      "properties": { "from": { "$ref": "#/$defs/phaseId" }, "to": { "$ref": "#/$defs/phaseId" } }
+    },
+    "sharedFileEdge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "to", "files"],
+      "properties": { "from": { "$ref": "#/$defs/phaseId" }, "to": { "$ref": "#/$defs/phaseId" }, "files": { "type": "array", "items": { "type": "string" } } }
+    },
+    "danglingDep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "dependsOn"],
+      "properties": { "phase": { "$ref": "#/$defs/phaseId" }, "dependsOn": { "type": "string" } }
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["risk", "mitigation", "refs"],
+      "properties": { "risk": { "type": "string" }, "likelihood": { "type": "string" }, "impact": { "type": "string" }, "mitigation": { "type": "string" }, "refs": { "type": "array", "items": { "$ref": "#/$defs/ref" } } }
+    },
+    "humanDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["question", "recommendation"],
+      "properties": { "question": { "type": "string" }, "recommendation": { "type": "string" }, "why": { "type": "string" }, "answer": { "type": "string", "description": "written by the skill after the human in the loop answers" } }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "base", "filesWritten", "attempts"],
+      "properties": {
+        "status": { "enum": ["pending", "blocked", "in-progress", "implemented", "validated", "pr-open", "failed", "escalated"] },
+        "base": { "type": "string", "description": "the integration branch for an independent phase; the parent phase's branch for a stacked one" },
+        "worktree": { "type": "string" },
+        "branch": { "type": "string" },
+        "commit": { "type": "string" },
+        "filesWritten": { "type": "array", "items": { "type": "string" } },
+        "attempts": { "type": "integer" },
+        "pr": { "type": "object", "additionalProperties": false, "required": ["number", "url", "base"], "properties": { "number": { "type": "integer" }, "url": { "type": "string" }, "base": { "type": "string" } } },
+        "blockedOn": { "type": "array", "items": { "$ref": "#/$defs/phaseId" } }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "phase", "node", "attempt", "verdict", "findings", "evidence"],
+      "properties": {
+        "id": { "$ref": "#/$defs/validationId" },
+        "phase": { "$ref": "#/$defs/phaseId" },
+        "node": { "enum": ["build", "review", "simplify", "simulate"] },
+        "attempt": { "type": "integer" },
+        "verdict": { "enum": ["pass", "fail", "unverified"] },
+        "findings": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["id", "severity", "claim", "refuted", "evidence"], "properties": { "id": { "type": "string" }, "file": { "type": "string" }, "line": { "type": "integer" }, "severity": { "type": "string" }, "claim": { "type": "string" }, "fix": { "type": "string" }, "refuted": { "type": "boolean" }, "evidence": { "type": "string" } } } },
+        "evidence": { "type": "string", "description": "the command run and what it printed" }
+      }
+    },
+    "repair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "phase", "validation", "attempt", "changed", "verdict", "evidence"],
+      "properties": {
+        "id": { "$ref": "#/$defs/repairId" },
+        "phase": { "$ref": "#/$defs/phaseId" },
+        "validation": { "$ref": "#/$defs/validationId" },
+        "attempt": { "type": "integer" },
+        "changed": { "type": "array", "items": { "type": "string" } },
+        "verdict": { "enum": ["fixed", "unfixed", "escalated"] },
+        "evidence": { "type": "string" }
+      }
+    }
+  }
+}
