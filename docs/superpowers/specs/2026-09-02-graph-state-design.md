@@ -47,6 +47,7 @@ GraphState
 │   integrationBranch: string
 │   partial: boolean                    // any node missing, any verdict unverified
 │   errors: string[]                    // named, never silent
+│   counts: { [name]: integer }         // reconciliation: briefs, findingsRaw -> findings -> verified -> confirmed/refuted/unverified/pastCap, phases, edges, agentCalls
 │
 ├ brief
 │   requirements: string
@@ -56,7 +57,9 @@ GraphState
 ├ lead                                  // existing mode only
 │   summary: string
 │   notPartitioned: string[]
-├ briefs: Brief[]                       // existing mode only — { id B#, title, objective, lens, boundaries, filesHint[], agentType }
+│   overlaps: [{ a: B#, b: B#, files[] }]   // brief pairs whose filesHint share ground — the partition failed there
+├ briefs: Brief[]                       // existing mode only — { id B#, title, objective, lens, boundaries, filesHint[], agentType,
+│                                       //   coverage: string | null }  null = the investigator returned nothing (missing ≠ empty)
 │
 ├ facts: Finding[]                      // existing mode: investigated and verified
 │   { id: F#, claim, file, line, quote, kind, importance, confidence, why?,
@@ -89,6 +92,7 @@ GraphState
 ├ risks: [{ risk, likelihood?, impact?, mitigation, refs: (F# | D#)[] }]
 ├ gaps: string[]                        // facts the synthesizer needed and did not get
 ├ humanDecisions: [{ question, recommendation, why?, answer?: string }]   // today's `decisions` — renamed; a human answers before code
+├ outOfScope: string[]                  // what the synthesizer deliberately left out
 │
 ├ artifacts: { [P#]: Artifact }         // execute-graph. The graph NEVER merges — `pr-open` is terminal.
 │   { status: 'pending' | 'blocked' | 'in-progress' | 'implemented' | 'validated' | 'pr-open' | 'failed' | 'escalated',

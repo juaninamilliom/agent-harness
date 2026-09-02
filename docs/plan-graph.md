@@ -53,24 +53,38 @@ claim it cannot re-establish does not survive.
 designs the phased plan from confirmed findings only, declaring dependencies
 between phases.
 
-**7. Post-pass (code)** — the design gets checked mechanically: dependency
-cycles flagged, `dependsOn` entries naming nonexistent phases flagged (**fake
-edges**), phase edges compared against shared files, and the finding counts
-reconciled (every finding must be exactly one of confirmed / refuted /
-unverified / past-cap — a vanished finding is a warning, not an adjustment).
+**7. Post-pass (code)** — the design gets checked mechanically: phase ids are
+made positional (`P1..`, with `dependsOn` remapped through the rename — ids are
+the vocabulary of the state, so code assigns them), dependency cycles flagged,
+`dependsOn` entries naming nonexistent phases removed from the phase and
+reported in `danglingDeps` under their original name, declared edges with no
+shared file reported as **fake-edge** candidates, shared-file edges added, and
+the finding counts reconciled (every finding must be exactly one of confirmed /
+refuted / unverified / past-cap — a vanished finding is a warning, not an
+adjustment).
+
+**8. Return the state** — every path out of the script, including the early
+exits, returns a `GraphState` (`plugins/harness/schemas/graph-state.schema.json`;
+design: `docs/superpowers/specs/2026-09-02-graph-state-design.md`). The skill
+persists it to `<workingDir>/.claude/graph-state/<run id>.json`; that file, not
+the chat, is the handoff to the next graph.
 
 ## Running it
 
 Invoke via `/harness:plan-graph <description>` — the skill gathers
-requirements and calls the Workflow tool with `scriptPath:
-${CLAUDE_PLUGIN_ROOT}/workflows/plan-graph.js`. Args:
+requirements, calls the Workflow tool with `scriptPath:
+${CLAUDE_PLUGIN_ROOT}/workflows/plan-graph.js`, and persists the returned
+state to `<workingDir>/.claude/graph-state/<run id>.json`. Args:
 
 | Arg | Default | Meaning |
 |---|---|---|
 | `requirements` | **required** | What to plan (the run throws without it) |
-| `criteria` | `''` | Acceptance criteria, passed to lead + synthesizer |
+| `criteria` | `[]` | Acceptance criteria, one per entry (a newline-separated string is split); stored in `brief.criteria`, cited by index |
+| `constraints` | `[]` | Stack, non-goals, hard rules; stored in `brief.constraints` |
 | `workingDir` | `''` (warns) | Absolute repo root agents read — always pass it |
-| `harnessRoot` | `./.claude` fallback | Plugin root; builds the `check-quote.sh` path for refuters |
+| `harnessRoot` | **required** | Plugin root; builds the `check-quote.sh` path for refuters. The run throws without it — the old `./.claude` fallback resolved to nothing on disk |
+| `integrationBranch` | `''` | Recorded in `run.integrationBranch`; the execute-graph bases independent phases on it |
+| `runId` | `''` | The skill sets `run.id` from the tool result when it persists; pass it only when re-emitting a state |
 | `maxBriefs` | 5 (2–6) | Partition width |
 | `maxVerify` | 25 (1–60) | Findings sent to the verify layer; the rest are `past-cap` |
 | `votesPerFinding` | 1 (1–3) | Refuters per finding |
@@ -90,11 +104,11 @@ you, rather than repairing by pretending. Concretely:
 
 | Failure | Behavior |
 |---|---|
-| Lead returns nothing / one brief | Run ends early, `partial: true`, explicit error |
-| An investigator returns nothing | Counted as **missing, not agreeing** ("never count silence as agreement"); run continues, output stamped `partial` and says which briefs died |
-| A refuter fails (infra) | Its finding is labeled `UNVERIFIED - refuter failed` — never promoted to confirmed, never counted as refuted |
-| The whole verify layer dies | Warning with the exact recovery instructions (see below); confirmed = none, findings preserved |
-| Synthesizer returns nothing | Verified findings still returned in the payload; `plan` is empty, `partial: true` |
+| Lead returns nothing / one brief | Run ends early; `run.partial: true`, the reason in `run.errors` — still a full `GraphState` |
+| An investigator returns nothing | Counted as **missing, not agreeing** ("never count silence as agreement"); run continues, `run.partial`, `run.errors` names the briefs, and each dead brief has `coverage: null` |
+| A refuter fails (infra) | Its finding is labeled `UNVERIFIED - refuter failed` — never promoted to confirmed, never counted as refuted; `run.errors` counts them |
+| The whole verify layer dies | Warning with the exact recovery instructions (see below); confirmed = none, facts preserved |
+| Synthesizer returns nothing | Verified facts still returned in the state; `plan` is empty, `run.partial: true`, `run.errors` says so |
 | Design has cycles / fake edges / unreconciled counts | Warned and surfaced; never auto-corrected |
 
 The only autonomous "healing" is the investigator-allowlist fallback (an
@@ -114,15 +128,30 @@ exactly this instruction when it detects that signature. Unknown-agent errors:
 check `claude plugin list` first — in-plugin agents must be addressed as
 `harness:<name>`.
 
-## Reading the output
+## Reading the output — the `GraphState`
 
-Top-level: `partial` (trust gate — a partial plan is missing investigators,
-verification, or synthesis and says which in the log), `plan` (the synthesized
-design), `findings` (every finding with its status: confirmed / refuted /
-unverified / past-cap), `counts` (full reconciliation: briefs,
-investigatorsReturned, findingsRaw → deduped → verified → confirmed/refuted/
-unverified/pastCap, phases, edge stats, agentCalls), plus `lead.summary`,
-`lead.notPartitioned`, per-brief `coverage`, and `overlaps`.
+The return value is a `GraphState`, validated against
+`plugins/harness/schemas/graph-state.schema.json` by the smoke test on every
+path. Sections this graph writes:
 
-Read `partial` first, `notPartitioned` second, `refuted` third — what the
-graph killed is often as informative as what survived.
+- `run` — `partial` (trust gate), `errors` (every reason, named — never only in
+  the log), `counts` (full reconciliation: briefs, investigatorsReturned,
+  findingsRaw → findings → verified → confirmed/refuted/unverified/pastCap,
+  phases, edge stats, agentCalls), `mode` (`existing` — greenfield mode comes
+  next), `workingDir`, `harnessRoot`, `integrationBranch`, `id`.
+- `brief` — `requirements`, `criteria[]` (cited by index), `constraints[]`.
+- `lead` — `summary`, `notPartitioned`, `overlaps` (where the partition failed).
+- `briefs[]` — each with `coverage` (`null` = the investigator returned nothing).
+- `facts[]` — every finding with its status (confirmed / refuted / unverified /
+  past-cap), its anchor (`file`, `line`, `quote`), `agreedBy`, and the
+  refuter's `evidence` / `correction`.
+- `plan`, `phases[]` (each with `refs` — the fact ids it rests on), `edges`,
+  `layers`, `sharedFileEdgesAdded`, `unbackedEdges`, `danglingDeps`, `risks`
+  (with `refs`), `gaps`, `humanDecisions` (a human answers before code; the
+  skill writes `answer` back), `outOfScope`.
+
+Present and empty until their graphs exist: `decisions`, `contract`
+(greenfield mode), `artifacts`, `validations`, `repairs` (execute-graph).
+
+Read `run.partial` first, `lead.notPartitioned` second, the refuted facts third
+— what the graph killed is often as informative as what survived.

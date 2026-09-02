@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.."
 FAIL=0
 run() { echo "== $1"; shift; if "$@"; then echo "   ok"; else echo "   FAIL"; FAIL=1; fi; }
 
-run "manifests parse"      jq -e . .claude-plugin/marketplace.json plugins/harness/.claude-plugin/plugin.json
+run "manifests + schemas parse" jq -e . .claude-plugin/marketplace.json plugins/harness/.claude-plugin/plugin.json plugins/harness/schemas/graph-state.schema.json
 run "shell syntax"         bash -c 'for f in $(find . -name "*.sh" -not -path "./.git/*"); do bash -n "$f" || exit 1; done'
 run "plan-graph smoke"     node tests/plan-graph.smoke.mjs plugins/harness/workflows/plan-graph.js
 run "review-graph smoke"   node tests/review-graph.smoke.mjs plugins/harness/workflows/review-graph.js

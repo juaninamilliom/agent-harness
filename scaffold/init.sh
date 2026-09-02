@@ -23,6 +23,11 @@ stamp "$REPO/scaffold/agents/_domain-architect.template.md"     "$PROJ/.claude/a
 stamp "$REPO/scaffold/agents/_craft-architect.template.md"      "$PROJ/.claude/agents/_craft-architect.template.md"
 stamp "$REPO/scaffold/skills/_env-verify.template/SKILL.md"     "$PROJ/.claude/skills/_env-verify.template/SKILL.md"
 stamp "$REPO/scaffold/risk-patterns.txt.example"                "$PROJ/.claude/risk-patterns.txt.example"
+# Graph state (.claude/graph-state/<run id>.json, written by the graph skills) is a
+# per-run, per-machine artifact - never committed. Append the ignore once; never rewrite.
+if grep -qsx '.claude/graph-state/' "$PROJ/.gitignore"; then echo "  exists, skipped: .gitignore entry .claude/graph-state/"; else
+  echo '.claude/graph-state/' >> "$PROJ/.gitignore"; echo "  gitignored: .claude/graph-state/"
+fi
 echo ""
 echo "Done ($stamped files). Next:"
 echo "  1. Fill every <!-- FILL --> in $PROJ/CLAUDE.md (components, branches, worktree table)"
