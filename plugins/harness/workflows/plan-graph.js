@@ -477,7 +477,7 @@ const briefsOut = (bs, inv) => bs.map((b, i) => ({
   id: b.id, title: b.title, objective: b.objective, lens: b.lens, boundaries: b.boundaries, filesHint: b.filesHint, agentType: b.agentType,
   coverage: inv && inv[i] && typeof inv[i].coverage === 'string' ? inv[i].coverage : null,
 }))
-const dedupeRefs = (rs) => { const seen = new Set(); return rs.filter((r) => { const k = `${r.from} ${r.ref}`; if (seen.has(k)) return false; seen.add(k); return true }) }
+const dedupeRefs = (rs) => { const seen = new Set(); return rs.filter((r) => { const k = `${r.from} ${r.ref}`; if (seen.has(k)) return false; seen.add(k); return true }) }
 
 // ===========================================================================
 // EXISTING MODE - Lead -> Investigate -> Reduce -> Verify. Returns the fact base.

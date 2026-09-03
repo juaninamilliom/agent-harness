@@ -114,12 +114,13 @@ GraphState
 
 | Node | Receives (projection) | Writes |
 |---|---|---|
-| **Router** (code) | `brief`, `run.workingDir` — and a shell probe: is there source under the components CLAUDE.md declares? | `run.mode` |
+| **Router** (the skill — scripts cannot probe the filesystem) | `brief`, `run.workingDir` — and a shell probe: is there source under the components CLAUDE.md declares? | `mode` arg → `run.mode` |
 | **Lead** (existing mode) | `brief` | `lead`, `briefs` |
+| **Lead** (greenfield) | `brief` | `decisions[]` (question, domain, cites, dependsOn — unanswered) and the **contract skeleton**: every id, names only. The lead mints every id; nobody renames. |
 | **Investigators / refuters** | one brief / one finding | `facts[]` (status per finding) |
-| **Domain specialists** (greenfield) | `brief`, the current `contract`, the `decisions` in their domain's `dependsOn` closure | their `decisions[]`, their `contract` slice |
-| **Integrity check** (code) | `decisions`, `contract`, `phases` | `run.errors[]` for dangling ids; blocks the fan-in until clean or escalated |
-| **Consistency validator** (fresh agent) | `contract` + `brief.criteria` only | `decisions[].status = conflict` + `conflict` text, or `validated` |
+| **Domain specialists** (greenfield) | `brief`, the whole contract skeleton (ids + names), their own decisions with the questions they depend on | their `decisions[]` (options, recommendation, cites, refs) and **only the slice they own** — `data → T`, `api → E` and `Y`, `ui → R` (F13). A write elsewhere is discarded and logged. New items are renumbered; their own refs follow the rename. |
+| **Integrity check** (code) | `decisions`, `contract`, later `phases` and `risks` | removes every reference that names nothing and reports it in `danglingRefs`; never blocks, never guesses |
+| **Consistency validator** (fresh agent, F1) | `brief.criteria`, `decisions` as data (id, domain, question, recommendation, cites, refs — never options or reasoning), the full `contract` | `conflicts[]` each with the owner that must fix it; `uncovered` criteria |
 | **Synthesizer** | `brief`, `facts` or `decisions` + `contract`, `gaps` so far | `plan`, `phases`, `risks`, `gaps`, `humanDecisions` |
 | **Post-pass** (code) | `phases` | `edges`, `layers`, `sharedFileEdgesAdded`, `unbackedEdges`, `danglingDeps` |
 | **Implementer** (one per phase) | its `phase`, the `contract` items its `refs` name, the `facts`/`decisions` its `refs` name, `brief.constraints` | `artifacts[P#]` |
@@ -137,7 +138,7 @@ transcript. That is F1 generalized.
 - **PR stacking — the graph never merges.** Every phase ends at `pr-open`; the operator reviews and merges. The stack topology *is* the plan's edges: a phase with no `dependsOn` branches off `dev` and gets an independent PR; a phase that depends on another branches off **that phase's branch** and its PR uses that branch as base — a stacked PR, so the cascading case (API → UI) reads as a chain of PRs each showing only its own diff. Stacks are chains: a phase whose dependencies sit in two different stacks cannot base on both, so it is marked `blocked` with `blockedOn` and waits until those PRs merge, then bases on `dev`. Reported, never guessed. This makes the fake-edge post-pass load-bearing twice: an unbacked edge would force an unnecessary stack.
 - **Conditional:** `run.mode` picks investigation vs decision partition. `validations[].verdict` picks merge vs repair vs escalate. Early exits (no briefs, no findings, no decisions) end the run `partial` with a named `error`.
 - **Cyclic — bounded, on confirmed failure only:**
-  - Planning: a `decision` marked `conflict` goes back to its domain specialist **once** with the conflict text; still conflicting → `status: human`, into `humanDecisions`.
+  - Planning: each owner named in a conflict gets **exactly its conflicts** and returns its complete decisions and slice through the same merge; the validator runs again; after `maxRepairRounds` (default 1) what remains is `status: human`, into `humanDecisions`. Uncovered criteria are never repaired — nothing owns them — so one found in any round becomes a `gap` and stays. A recommendation that cites no criterion and refs no contract item goes to the human, not silently trusted and not silently dropped.
   - Execution: a `fail` verdict with ≥1 confirmed finding spawns a **fresh** fix node; `maxRepairs` (default 2) per phase; then `artifacts[P#].status = escalated` and the run stops at that layer, `partial`.
   - Never on `unverified`. An infra failure re-runs via the Workflow tool's resume, not via a repair edge.
 
@@ -157,7 +158,8 @@ the scaffold.
 | F1 worker ≠ verifier context | Generalized: every node gets a projection, never a transcript; the fix node is fresh. |
 | F2 the suite is never an anchor | Unchanged for refuters. The `simulate` node runs a component's suite only where CLAUDE.md's Components table says **Trustworthy suite? yes**; otherwise boot + endpoints + browser only. |
 | F7 default DROP | Unchanged; validators' findings carry `refuted` from a refuter pass before any repair is spawned. |
-| F9 verbatim quote is the anchor | Unchanged in existing mode. Greenfield mode's anchor is `brief.criteria` by index + the `contract` ids — a decision that cites no criterion and no contract item is dropped in code. |
+| F9 verbatim quote is the anchor | Unchanged in existing mode. Greenfield mode's anchor is `brief.criteria` by index + the `contract` ids — a decision that cites no criterion and refs no contract item is escalated to the human in code, never trusted. |
+| **F13 one writer per contract slice** (new, 2026-09-03) | The lead mints every id; each slice has one owning specialist; a write to another slice is discarded and logged. This is what makes greenfield's merge mechanical instead of v2's merge-by-name. |
 | F10 an edge must name its artifact | Unchanged; `unbackedEdges` still reported, never deleted. |
 | F11 silence ≠ agreement; three outcomes | Unchanged and now structural: `unverified` is a first-class verdict in `validations`, never promoted. |
 | "No automatic retries" (docs/plan-graph.md) | Narrowed to what it meant: no retry on silence or infra. Bounded repair on confirmed findings is a conditional edge on verified state. |
@@ -167,7 +169,7 @@ the scaffold.
 ## What this unlocks, in order
 
 1. **plan-graph today** emits ~40% of this (`facts`, `phases`, `edges`, `layers`, the post-pass fields). First change: it emits a `GraphState` and the skill persists it. No behavior change.
-2. **plan-graph greenfield mode**: the router, domain specialists writing `decisions` + `contract`, the integrity check, the consistency validator, the one repair edge, the same synthesizer and post-pass.
+2. **plan-graph greenfield mode** — shipped 2026-09-03: the skill routes by a shell probe; the lead mints the contract skeleton (ids + names) so specialists name against it; specialists write only the slice they own; integrity in code; the fresh validator; bounded repair; the same synthesizer and post-pass.
 3. **execute-graph**: consumes `layers` and `edges`; implementers, barrier, validation chain, bounded repair, then one PR per phase — independent off `dev`, or stacked on the parent phase's branch. Never merges.
 4. **The `simulate` node**: boot the dev command from the components table, hit every `E#` the phase owns, snapshot every `R#` it owns, run the suite where trusted.
 

@@ -1,5 +1,5 @@
 ---
-description: Graph plan. A strong lead partitions the codebase questions into 2-5 briefs; cheap read-only investigators return findings anchored on verbatim quotes; code dedupes, ranks and caps; one fresh refuter per finding checks the quote with the shell; one strong agent designs the plan; code checks its phases for fake edges. For work whose facts span several subsystems. /harness:plan is the control.
+description: Graph plan. Existing code — a strong lead partitions the codebase questions into 2-5 briefs; cheap read-only investigators return findings anchored on verbatim quotes; code dedupes, ranks and caps; one fresh refuter per finding checks the quote with the shell. Greenfield (no code yet) — the lead extracts the decisions the brief forces and lays the contract skeleton; one specialist per domain answers and elaborates its slice; a fresh validator finds conflicts; one repair round; the rest go to the human. Either way one strong agent designs the plan once and code checks its phases for fake edges. For work whose facts or design decisions span several subsystems. /harness:plan is the control.
 allowed-tools: Workflow, Read, Write, Grep, Glob, Bash(git:*), AskUserQuestion, TaskCreate, TaskList, TaskUpdate
 argument-hint: [description]
 ---
@@ -16,6 +16,16 @@ both: the *investigation* — what is true about this codebase — is decomposab
 where `/harness:plan`'s specialists earned their keep; the *design* is sequential and belongs in
 one context. So the graph gathers and verifies facts in parallel, and one strong agent
 designs from them. Version 2 fanned out designers and lost twice.
+
+**Greenfield mode — when there is no code to read.** The graph partitions the
+*decisions* the brief forces instead of the facts. v2's failure re-read: it fanned out
+design with no shared naming ground and no validator that could send a mismatch back.
+So here the lead mints every id up front (the contract skeleton: endpoints `E#`, tables
+`T#`, routes `R#`, types `Y#` — names only), one specialist per domain answers only its
+decisions and elaborates only the slice it owns, code checks every reference at the
+fan-in, a fresh validator finds where the slices disagree, each owner gets its conflicts
+back exactly once, and what still conflicts is a human's decision. Then the same single
+synthesizer designs the plan from validated decisions and the contract.
 
 It is a separate command on purpose. Nothing here changes `/harness:plan` or any architect file.
 Run the same task through both and compare.
@@ -54,6 +64,16 @@ Do not run the workflow for a one-cluster task. The lead refuses with fewer than
 briefs anyway, and a two-brief run still costs a lead, two investigators, up to 25
 refuters and a synthesizer.
 
+**Route — existing or greenfield.** The script cannot touch the filesystem, so you are
+the router. Probe: `git -C <workingDir> ls-files -- <the component paths CLAUDE.md
+declares, or the repo> | head -5`. Source files present → `mode: "existing"`. An empty
+repo, or only scaffold files (`CLAUDE.md`, `.claude/`, `package.json` with no source) →
+`mode: "greenfield"`. When in doubt, ask the user which they mean — a greenfield run
+against a codebase ignores everything the code already says, and an existing-mode run
+against an empty repo returns `no findings`. The greenfield gate is the same question in
+different clothes: **do the design decisions span two or more domains** (data, api, ui,
+auth, test)? One domain → `/harness:plan`.
+
 ## Step 3: Run the graph
 
 By `scriptPath`, never by name (the name registry is built at session start):
@@ -68,6 +88,7 @@ Workflow({
     workingDir: "/abs/path/to/the/repo-root",   // the root that contains the components being planned
     harnessRoot: "${CLAUDE_PLUGIN_ROOT}",       // REQUIRED - locates check-quote.sh for the refuters; the run throws without it
     integrationBranch: "dev",                   // from CLAUDE.md "Integration branch"; recorded in the state for the execute-graph
+    mode: "existing",                           // or "greenfield" - your routing decision from Step 2; default existing
     maxBriefs: 5,                       // 2-6; the lead may write fewer
     maxVerify: 25                       // findings verified, ranked by importance
   }
@@ -78,7 +99,12 @@ Optional: `investigatorModel` / `verifierModel` (default `sonnet`), `leadAgentTy
 `synthAgentType` (default `harness:code-architect`), `votesPerFinding` / `refutesToKill` (default
 1/1 — one anchored refuter; a vote of identical models is consensus, not evidence),
 `investigatorAgentTypes` (the read-only architects a brief may name; the workflow rejects
-anything else).
+anything else). Greenfield: `maxRepairRounds` (default 1, 0–2), `validatorAgentType`
+(default `harness:code-architect`), `specialistAgentTypes` (a map from domain to agent,
+e.g. `{ data: "billing-architect" }`, merged over the defaults `data → harness:db-architect`,
+`api → harness:api-architect`, `ui → harness:frontend-architect`, `auth →
+harness:security-architect`, `test → harness:test-architect`, `infra`/`other` →
+`harness:code-architect`).
 
 **The return value is a `GraphState`** (`${CLAUDE_PLUGIN_ROOT}/schemas/graph-state.schema.json`)
 on every path — clean, partial, or an early exit. **Persist it before presenting
@@ -110,6 +136,30 @@ What the script does, so you can read its logs:
    write one file with no edge, reports declared edges with no shared file as fake-edge
    candidates, and computes layers.
 
+In greenfield mode, steps 1–4 are instead:
+
+1. **Lead** — reads the brief (and CLAUDE.md if any) and writes 2–12 **decisions** the
+   brief forces, each owned by a domain and citing criteria by index, plus the
+   **contract skeleton** — ids and names only. Code assigns positional ids (`D1..`,
+   `E1..`, `T1..`, `R1..`, `Y1..`) and drops any `dependsOn` or criteria index it cannot
+   resolve, reporting it in `danglingRefs`.
+2. **Design** — one specialist per activated domain, in parallel, fresh context: its
+   decisions and the whole skeleton, nothing from the other specialists. It answers
+   (options, recommendation, cites, refs) and elaborates **only the slice it owns**
+   (data → tables; api → endpoints and types; ui → routes). A write to another slice is
+   discarded and logged. New items are renumbered; the specialist's own references
+   follow the rename.
+3. **Integrity** (code) — every reference in a decision or a contract item must resolve;
+   what does not is removed and reported. A dead specialist's decisions go to the human.
+4. **Validate → Repair → Validate** — a fresh validator sees the decisions and the
+   contract as data (id, question, recommendation, refs — never the options or the
+   reasoning) plus the criteria, and returns conflicts, each with the owner that must fix
+   it, plus uncovered criteria. Each owner gets exactly its conflicts and returns its
+   complete slice; code merges it the same way; the validator runs again. After
+   `maxRepairRounds`, what remains is `status: human` and lands in `humanDecisions`. A
+   recommendation that cites no criterion and refs no contract item is escalated, not
+   trusted. No verdict → decisions stay `proposed`, never promoted.
+
 ## Step 4: Present
 
 In this order:
@@ -140,6 +190,13 @@ In this order:
    stacked PR once the execute-graph consumes this state.)
 9. **`lead.overlaps`** and each brief's `coverage` — where the lead's partition failed
    and what each investigator could not establish.
+
+In greenfield mode, items 5, 6 and 9 become: **the decisions** — each `D#` with its
+status (`validated` / `human` with the conflict text / `proposed` only if the validator
+died), the recommendation, and what it cites; **the contract**, slice by slice, as the
+naming ground every phase refs; and **`danglingRefs`** — every reference the code
+removed because it named nothing. `humanDecisions` now carries the escalated decisions
+and contract conflicts ahead of the synthesizer's own questions; ask them all.
 
 ## Step 5: Human gate, then tasks
 

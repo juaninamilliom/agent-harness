@@ -69,6 +69,58 @@ design: `docs/superpowers/specs/2026-09-02-graph-state-design.md`). The skill
 persists it to `<workingDir>/.claude/graph-state/<run id>.json`; that file, not
 the chat, is the handoff to the next graph.
 
+## Greenfield mode
+
+When there is no code to read, `mode: "greenfield"` swaps steps 1–5 for a
+graph over the *decisions* the brief forces. Same thesis, same synthesizer;
+what fans out is analysis of the brief, and what makes the fan-out mergeable
+is a naming ground the lead lays before anyone designs.
+
+```
+Lead ──► [ids, skeleton] ──► Design (parallel, one per domain) ──► [merge + integrity] ──► Validate ──► Repair (once) ──► Validate ──► [settle] ──► Synthesize ──► [post-pass]
+```
+
+**Lead** reads the brief and writes 2–12 **decisions** (`D#`, each owned by
+a domain — data / api / ui / auth / test / infra / other — citing acceptance
+criteria by index, with `dependsOn`) and the **contract skeleton**: endpoints
+`E#`, tables `T#`, routes `R#`, shared types `Y#` — ids and names only. The
+lead mints every id.
+
+**Design** — one specialist per activated domain, in parallel, fresh context.
+It sees its decisions and the whole skeleton; it answers its decisions
+(options, one recommendation, `cites`, `refs`) and elaborates **only the slice
+it owns** (`data → T`, `api → E` and `Y`, `ui → R`; auth and test write
+decisions only). That single-writer rule is frozen (F13): a write to another
+slice is discarded and logged, and the need goes in a decision's `refs`.
+
+**Merge + integrity (code)** — skeleton items keep their ids; new items are
+renumbered and the specialist's own references follow the rename. Every
+reference must resolve or it is removed from the object and reported in
+`danglingRefs`. A dead specialist's decisions go to the human (F11).
+
+**Validate** — a fresh `harness:code-architect` sees the decisions and the
+contract *as data* (id, domain, question, recommendation, cites, refs — never
+the options or the reasoning; F1) plus the criteria, and returns conflicts,
+each naming the owner that must fix it, plus criteria nothing serves.
+
+**Repair, bounded** — each owner gets exactly its conflicts and returns its
+complete decisions and slice; the merge is the same code path; the validator
+runs again. `maxRepairRounds` (default 1) rounds, then what remains is
+`status: human`. Uncovered criteria are never sent for repair — they become
+`gaps`, and one found in any round stays reported.
+
+**Settle** — `validated`, or `human` (a surviving conflict, a dead specialist,
+an answer that cites no criterion and refs no contract item), or `proposed` if
+the validator returned nothing — silence validates nothing. Escalations land
+in `humanDecisions` ahead of the synthesizer's own questions.
+
+**Synthesize + post-pass** — as in existing mode, from the validated decisions
+and the contract; phases `refs` the `D#`/`E#`/`T#`/`R#`/`Y#` they implement,
+and a ref that names nothing is dropped and reported.
+
+Cost: `1 (lead) + domains + validator calls (1 or 2) + repaired owners + 1
+(synth)` — a four-domain brief with one repair round is ~10 calls.
+
 ## Running it
 
 Invoke via `/harness:plan-graph <description>` — the skill gathers
@@ -92,6 +144,10 @@ state to `<workingDir>/.claude/graph-state/<run id>.json`. Args:
 | `investigatorModel` / `verifierModel` | `sonnet` | Cheap-tier workers |
 | `leadAgentType` / `synthAgentType` | `harness:code-architect` | The two strong seats |
 | `investigatorAgentTypes` | built-in read-only list | Override the investigator allowlist |
+| `mode` | `existing` | `existing` or `greenfield` — the skill's routing decision (the script cannot probe the filesystem) |
+| `maxRepairRounds` | 1 (0–2) | Greenfield: how many times a conflict goes back to its owner before the human decides |
+| `validatorAgentType` | `harness:code-architect` | Greenfield: the fresh consistency validator |
+| `specialistAgentTypes` | `{data: db-, api: api-, ui: frontend-, auth: security-, test: test-, infra/other: code-architect}` | Greenfield: per-domain specialist, merged over the defaults (all `harness:`-qualified) |
 
 **Cost model**: agent calls = `1 (lead) + briefs + verified-findings × votes +
 1 (synth)` — defaults land around 10–30 calls. Rule of thumb from measured
@@ -109,6 +165,11 @@ you, rather than repairing by pretending. Concretely:
 | A refuter fails (infra) | Its finding is labeled `UNVERIFIED - refuter failed` — never promoted to confirmed, never counted as refuted; `run.errors` counts them |
 | The whole verify layer dies | Warning with the exact recovery instructions (see below); confirmed = none, facts preserved |
 | Synthesizer returns nothing | Verified facts still returned in the state; `plan` is empty, `run.partial: true`, `run.errors` says so |
+| (greenfield) Lead returns nothing / one decision | Run ends early; `run.partial: true`, `run.errors` says why |
+| (greenfield) A specialist returns nothing | Its decisions are `status: human` with `conflict: specialist returned nothing`; `run.partial`, `run.errors` names it |
+| (greenfield) The validator returns nothing | Decisions stay `proposed` — never promoted by silence; no repairs run; `run.partial`, `run.errors` names it |
+| (greenfield) A conflict survives the repair rounds | `status: human` with the conflict text, in `humanDecisions`; the run is **complete**, not partial — escalation is the designed terminal |
+| (greenfield) A reference names nothing | Removed from the object, reported in `danglingRefs`; the run continues |
 | Design has cycles / fake edges / unreconciled counts | Warned and surfaced; never auto-corrected |
 
 The only autonomous "healing" is the investigator-allowlist fallback (an
@@ -150,8 +211,16 @@ path. Sections this graph writes:
   (with `refs`), `gaps`, `humanDecisions` (a human answers before code; the
   skill writes `answer` back), `outOfScope`.
 
-Present and empty until their graphs exist: `decisions`, `contract`
-(greenfield mode), `artifacts`, `validations`, `repairs` (execute-graph).
+Greenfield mode writes `decisions[]` (each `D#` with `domain`, `question`,
+`options`, `recommendation`, `why`, `cites`, `refs`, `status`, and `conflict`
+when escalated), `contract` (an open map — `api`, `data`, `ui`, `types` in
+v1 — every item with an id), and `danglingRefs[]`; `facts` and `briefs` are
+empty. Existing mode writes `facts` and `briefs`; `decisions` and `contract`
+are empty. Both write `danglingRefs` for phase and risk refs that named
+nothing.
+
+Present and empty until the execute-graph exists: `artifacts`, `validations`,
+`repairs`.
 
 Read `run.partial` first, `lead.notPartitioned` second, the refuted facts third
 — what the graph killed is often as informative as what survived.
