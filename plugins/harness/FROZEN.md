@@ -26,6 +26,7 @@ nobody noticed until a section-by-section audit weeks later.
 **MARKER:** `not seen the reasoning` — `agents/claim-refuter.md`
 **MARKER:** `never sees the lens` — `workflows/review-graph.js`
 **MARKER:** `never the investigator` — `workflows/plan-graph.js`
+**MARKER:** `never the specialist` — `workflows/plan-graph.js` (added 2026-09-03: greenfield mode's consistency validator sees the specialists' output as data, never the specialists)
 
 **Why frozen:** it is cheaper and simpler to hand the checker the worker's transcript,
 and the output looks the same. It is not the same. A verifier that can see the argument
@@ -119,6 +120,7 @@ not a dependency.
 
 **MARKER:** `not an investigator with no findings` — `workflows/plan-graph.js`
 **MARKER:** `Never count silence as agreement` — `workflows/plan-graph.js`
+**MARKER:** `not a specialist with no decisions` — `workflows/plan-graph.js` (added 2026-09-03: greenfield mode's fan-in — a dead specialist's decisions go to the human, never silently proposed)
 
 > Markers are matched as literal substrings, so they must not span a line wrap. This one
 > failed on its first run for exactly that reason — the phrase was broken across two
@@ -131,6 +133,22 @@ that signals idle without delivering looks exactly like one that finished. Both 
 then returned a Critical. `plan-graph` enforces it in code: an investigator that returns
 null is named in the log and the payload is marked partial. (Reworded 2026-08-27 for v3:
 architects became investigators.)
+
+## F13 — One writer per contract slice
+
+**MARKER:** `write to a slice it does not own is discarded` — `workflows/plan-graph.js`
+**MARKER:** `Anything you write to a slice you do not own is` — `workflows/plan-graph.js`
+
+**Why frozen:** greenfield mode fans out design, which v2 proved fails when independent
+agents name the same artifact differently and the code tries to merge by name. What
+makes the greenfield merge mechanical is that every contract slice has exactly one
+owning specialist (data → tables, api → endpoints and types, ui → routes) and the lead
+mints every id. The obvious relaxation — "let the auth specialist set `auth` on the
+endpoints directly, it's simpler than a decision with refs" — is the first step back to
+v2: two writers on one slice, a merge that must guess whose value wins, and a validator
+that cannot say who must fix a conflict. A specialist's need of another slice is a
+decision with `refs`; the validator routes the conflict to the owner. Discarded writes
+are logged, never merged silently.
 
 ---
 

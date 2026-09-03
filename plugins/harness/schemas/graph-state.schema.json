@@ -5,7 +5,7 @@
   "description": "The shared state that crosses between harness graphs as args.state and is persisted by the invoking skill to <workingDir>/.claude/graph-state/<run.id>.json. Ids are the vocabulary: every cross-reference is an id, and referential integrity is checked in code at every fan-in. A node receives a projection of this object, never the whole, never a transcript. Design: docs/superpowers/specs/2026-09-02-graph-state-design.md. Workflow scripts cannot import this file; each embeds the slices it enforces at its agent() boundaries, and tests/plan-graph.smoke.mjs validates the emitted state against this file with tests/schema-check.mjs (a deliberately small validator - keep this schema inside the subset it supports).",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "run", "brief", "lead", "briefs", "facts", "decisions", "contract", "plan", "phases", "edges", "layers", "sharedFileEdgesAdded", "unbackedEdges", "danglingDeps", "risks", "gaps", "humanDecisions", "outOfScope", "artifacts", "validations", "repairs"],
+  "required": ["version", "run", "brief", "lead", "briefs", "facts", "decisions", "contract", "plan", "phases", "edges", "layers", "sharedFileEdgesAdded", "unbackedEdges", "danglingDeps", "danglingRefs", "risks", "gaps", "humanDecisions", "outOfScope", "artifacts", "validations", "repairs"],
   "properties": {
     "version": { "const": 1 },
     "run": {
@@ -59,6 +59,7 @@
     "sharedFileEdgesAdded": { "type": "array", "items": { "$ref": "#/$defs/sharedFileEdge" } },
     "unbackedEdges": { "type": "array", "items": { "$ref": "#/$defs/edgeRef" } },
     "danglingDeps": { "type": "array", "items": { "$ref": "#/$defs/danglingDep" } },
+    "danglingRefs": { "type": "array", "items": { "$ref": "#/$defs/danglingRef" }, "description": "every reference (a decision's refs or cites, a contract item's reads/writes/usedBy/column ref, a phase's or risk's refs) that named an id which does not exist. Removed from the object, reported here - referential integrity is checked in code at every fan-in, never guessed." },
     "risks": { "type": "array", "items": { "$ref": "#/$defs/risk" } },
     "gaps": { "type": "array", "items": { "type": "string" } },
     "humanDecisions": { "type": "array", "items": { "$ref": "#/$defs/humanDecision" } },
@@ -133,6 +134,7 @@
         "why": { "type": "string" },
         "dependsOn": { "type": "array", "items": { "$ref": "#/$defs/decisionId" } },
         "cites": { "type": "array", "items": { "type": "integer" }, "description": "brief.criteria indexes" },
+        "refs": { "type": "array", "items": { "$ref": "#/$defs/ref" }, "description": "contract ids the recommendation rests on. A decision that cites no criterion and refs no contract item is unanchored and goes to the human." },
         "status": { "enum": ["proposed", "validated", "conflict", "human"] },
         "conflict": { "type": "string" }
       }
@@ -182,6 +184,12 @@
       "additionalProperties": false,
       "required": ["phase", "dependsOn"],
       "properties": { "phase": { "$ref": "#/$defs/phaseId" }, "dependsOn": { "type": "string" } }
+    },
+    "danglingRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["from", "ref"],
+      "properties": { "from": { "type": "string", "description": "the id of the object that held the reference" }, "ref": { "type": "string", "description": "the reference as written, e.g. E99 or criteria[7]" } }
     },
     "risk": {
       "type": "object",

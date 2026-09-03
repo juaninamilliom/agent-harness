@@ -63,17 +63,109 @@ const SYNTH = {
   gaps: ['follower config source'],
 }
 
-async function run(args, { lead = LEAD, inv = INV, verdict = () => ({ refuted: false, evidence: 'FOUND', confidence: 'high' }), synth = SYNTH, deadVerify = false } = {}) {
+// --- greenfield fixtures: no code to read, so the lead partitions the DECISIONS the brief
+// forces and lays the contract skeleton; specialists answer and elaborate; a validator
+// finds where they disagree; one repair round; what is left goes to the human. ---
+const GF_LEAD = {
+  summary: 'four decisions across four domains',
+  decisions: [
+    { id: 'D1', domain: 'data', question: 'How are posts and follows stored?', why: 'timeline query shape', cites: [1, 2], dependsOn: [] },
+    { id: 'D2', domain: 'api', question: 'What is the timeline endpoint contract?', why: 'pagination', cites: [2], dependsOn: ['D1'] },
+    { id: 'D3', domain: 'ui', question: 'How does the timeline page load and paginate?', why: 'ux', cites: [2], dependsOn: ['D2'] },
+    { id: 'D4', domain: 'auth', question: 'Session mechanism?', why: 'login', cites: [0], dependsOn: ['D9'] },   // D9 does not exist -> dropped, reported
+  ],
+  contract: {
+    api: [{ id: 'E1', method: 'GET', path: '/api/timeline', purpose: 'home timeline' }, { id: 'E2', method: 'POST', path: '/api/posts', purpose: 'create post' }],
+    data: [{ id: 'T1', name: 'users', purpose: 'accounts' }, { id: 'T2', name: 'posts', purpose: 'posts' }, { id: 'T3', name: 'follows', purpose: 'edges' }],
+    ui: [{ id: 'R1', path: '/', purpose: 'timeline' }],
+    types: [],
+  },
+  notPartitioned: ['search - v2'],
+}
+const col = (name, type, ref) => ({ name, type, nullable: false, ...(ref ? { ref } : {}) })
+const GF_DESIGN = {
+  data: {
+    decisions: [{ id: 'D1', options: [{ name: 'adjacency table', tradeoffs: 'simple' }], recommendation: 'follows(follower_id, followee_id) + posts(author_id)', why: 'one join', cites: [2], refs: ['T2', 'T3'] }],
+    contract: {
+      data: [
+        { id: 'T1', name: 'users', purpose: 'accounts', columns: [col('id', 'integer'), col('handle', 'text')], indexes: ['handle'] },
+        { id: 'T2', name: 'posts', purpose: 'posts', columns: [col('id', 'integer'), col('author_id', 'integer', 'T1'), col('body', 'text')], indexes: ['author_id'] },
+        { id: 'T3', name: 'follows', purpose: 'edges', columns: [col('follower_id', 'integer', 'T1'), col('followee_id', 'integer', 'T1')], indexes: [] },
+        { id: 'T7', name: 'sessions', purpose: 'login sessions', columns: [col('id', 'text'), col('user_id', 'integer', 'T1'), col('parent', 'text', 'T7')], indexes: [] }, // new, non-positional id, self-ref -> T4, remapped
+      ],
+      api: [{ id: 'E1', method: 'GET', path: '/api/timeline', purpose: 'data specialist trespassing on the api slice' }], // not its slice -> discarded, logged
+    },
+    notes: '',
+  },
+  api: {
+    decisions: [{ id: 'D2', options: [{ name: 'cursor', tradeoffs: 'stable under inserts' }], recommendation: 'cursor pagination by (created_at, id)', why: 'stable', cites: [2], refs: ['E1'] }],
+    contract: {
+      api: [
+        { id: 'E1', method: 'GET', path: '/api/timeline', purpose: 'home timeline', auth: 'session', request: '?cursor', response: '{posts[], nextCursor}', errors: ['401'], reads: ['T2', 'T3'], writes: [] },
+        { id: 'E2', method: 'POST', path: '/api/posts', purpose: 'create post', auth: 'none', request: '{body}', response: '{post}', errors: ['400'], reads: [], writes: ['T2'] }, // auth none -> the validator's conflict
+        { id: 'E9', method: 'POST', path: '/api/login', purpose: 'login', auth: 'none', request: '{handle,password}', response: '{ok}', errors: ['401'], reads: ['T1'], writes: ['T1'] }, // new -> E3
+      ],
+      types: [{ id: 'Y1', name: 'Post', shape: '{id, authorHandle, body, createdAt}', usedBy: ['E1', 'E9'] }], // E9 -> E3
+    },
+    notes: '',
+  },
+  ui: {
+    decisions: [{ id: 'D3', options: [{ name: 'infinite scroll', tradeoffs: 'simple' }], recommendation: 'load-more button using nextCursor', why: 'simple', cites: [2], refs: ['R1', 'E1'] }],
+    contract: {
+      ui: [
+        { id: 'R1', path: '/', purpose: 'timeline', components: ['Timeline', 'Composer'], reads: ['E1'], writes: ['E2'] },
+        { id: 'R2', path: '/login', purpose: 'login', components: ['LoginForm'], reads: [], writes: ['E99'] }, // E99 does not exist -> dropped, reported
+      ],
+    },
+    notes: '',
+  },
+  auth: {
+    decisions: [{ id: 'D4', options: [{ name: 'cookie session', tradeoffs: 'simple' }], recommendation: 'httpOnly cookie session, bcrypt', why: 'local app', cites: [0], refs: ['E2'] }],
+    contract: {},
+    notes: '',
+  },
+}
+const GF_VALIDATE = {
+  1: { conflicts: [
+    { id: 'E2', owner: 'api', problem: 'E2 auth is none but D4 requires a session to post', fix: 'auth: session' },
+    { id: 'D3', owner: 'ui', problem: 'D3 relies on nextCursor but does not say what happens at the end', fix: 'state the terminal condition' },
+  ], uncovered: [1], summary: 'two conflicts' },
+  2: { conflicts: [{ id: 'D3', owner: 'ui', problem: 'still no terminal condition', fix: 'ask the owner' }], uncovered: [], summary: 'one left' },
+}
+// A repair returns the specialist's COMPLETE slice under the ids as merged (E3, not E9).
+const GF_REPAIR = {
+  api: { ...GF_DESIGN.api, contract: {
+    api: GF_DESIGN.api.contract.api.map((e) => (e.id === 'E2' ? { ...e, auth: 'session' } : e.id === 'E9' ? { ...e, id: 'E3' } : e)),
+    types: [{ ...GF_DESIGN.api.contract.types[0], usedBy: ['E1', 'E3'] }],
+  } },
+  ui: GF_DESIGN.ui,
+}
+const GF_SYNTH = {
+  plan: 'GF PLAN',
+  phases: [
+    { id: 'P1', title: 'schema', commit: 'c1', files: ['server/src/db/schema.ts'], dependsOn: [], owner: 'data', refs: ['T1', 'T2', 'T3', 'T4', 'D1'] },
+    { id: 'P2', title: 'api', commit: 'c2', files: ['server/src/routes/timeline.ts'], dependsOn: ['P1'], owner: 'api', refs: ['E1', 'E2', 'E3', 'D2', 'Q9'] }, // Q9 -> dropped, reported
+    { id: 'P3', title: 'ui', commit: 'c3', files: ['client/src/pages/Timeline.tsx'], dependsOn: ['P2'], owner: 'ui', refs: ['R1', 'D3'] },
+  ],
+  decisions: [{ question: 'max post length 280 or 500?', recommendation: '280' }],
+  risks: [{ risk: 'cursor drift', mitigation: 'sort by (created_at, id)', refs: ['E1'] }],
+  gaps: ['rate limits'],
+}
+
+async function run(args, { lead = LEAD, inv = INV, verdict = () => ({ refuted: false, evidence: 'FOUND', confidence: 'high' }), synth = SYNTH, deadVerify = false, design = GF_DESIGN, validate = GF_VALIDATE, repair = GF_REPAIR } = {}) {
   const logs = [], calls = []
   const agent = async (prompt, opts) => {
     const l = opts.label
-    calls.push({ label: l, agentType: opts.agentType, model: opts.model })
+    calls.push({ label: l, agentType: opts.agentType, model: opts.model, prompt })
     if (l === 'lead') return lead
     if (l.startsWith('investigate:')) return inv[l.slice(12)] === undefined ? null : inv[l.slice(12)]
     if (l.startsWith('verify:')) {
       if (deadVerify) throw new Error(`agent type '${opts.agentType}' not found`)
       return verdict(l)
     }
+    if (l.startsWith('design:')) return design[l.slice(7)] === undefined ? null : design[l.slice(7)]
+    if (l.startsWith('validate:')) return validate[l.slice(9)] === undefined ? null : validate[l.slice(9)]
+    if (l.startsWith('repair:')) return repair[l.slice(7)] === undefined ? null : repair[l.slice(7)]
     if (l === 'synthesize') return synth
     throw new Error('unexpected ' + l)
   }
@@ -83,6 +175,7 @@ async function run(args, { lead = LEAD, inv = INV, verdict = () => ({ refuted: f
 }
 // harnessRoot is relative to the repo root - tests/run-all.sh cds there before running.
 const BASE = { requirements: 'make agent TP/SL real triggers', criteria: 'c', workingDir: '/x', harnessRoot: 'plugins/harness', integrationBranch: 'dev', maxVerify: 4 }
+const GF_BASE = { ...BASE, mode: 'greenfield', requirements: 'local twitter: post, follow, timeline', criteria: ['users can sign up and log in', 'a post is at most 280 chars', 'the home timeline shows followed users posts newest first, paginated'], constraints: ['Vite/React + Express + SQLite'] }
 
 console.log('run 1: full diamond')
 {
@@ -191,6 +284,72 @@ console.log('run 4: ids are the vocabulary - the code assigns them')
   eq('a dependsOn the remap cannot resolve is dangling, under the original name', out.danglingDeps, [{ phase: 'P3', dependsOn: 'nope' }])
   eq('edges use the new ids', out.edges, [{ from: 'P1', to: 'P2', reason: 'declared' }])
   if (!logs.some((l) => l.includes('renamed') && l.includes('alpha->P1'))) fail('id normalization must be logged: ' + logs.filter((l) => l.includes('renamed')).join(' | '))
+}
+console.log('run 5: greenfield - decisions, contract, validate, one repair round, escalate the rest')
+{
+  const { out, logs, calls } = await run(GF_BASE, { lead: GF_LEAD, synth: GF_SYNTH })
+  logs.forEach((l) => console.log('   ', l))
+  isState('greenfield run', out)
+  eq('mode; no investigation sections', [out.run.mode, out.facts, out.briefs], ['greenfield', [], []])
+  eq('criteria as given, three of them', out.brief.criteria.length, 3)
+  // lead
+  eq('decision ids and domains', out.decisions.map((d) => [d.id, d.domain]), [['D1', 'data'], ['D2', 'api'], ['D3', 'ui'], ['D4', 'auth']])
+  eq('dangling dependsOn dropped from the decision and reported', [out.decisions[3].dependsOn, out.danglingRefs.some((r) => r.from === 'D4' && r.ref === 'D9')], [[], true])
+  eq('lead passthrough', [out.lead.summary, out.lead.notPartitioned], ['four decisions across four domains', ['search - v2']])
+  // specialists
+  eq('one specialist per activated domain, on the domain architects', calls.filter((c) => c.label.startsWith('design:')).map((c) => [c.label, c.agentType]), [['design:data', 'harness:db-architect'], ['design:api', 'harness:api-architect'], ['design:ui', 'harness:frontend-architect'], ['design:auth', 'harness:security-architect']])
+  // merge + integrity, in code
+  eq('data slice: skeleton elaborated, new item renumbered', out.contract.data.map((t) => t.id), ['T1', 'T2', 'T3', 'T4'])
+  eq('new item self-ref remapped through the rename', out.contract.data[3].columns.find((c) => c.name === 'parent').ref, 'T4')
+  if (!logs.some((l) => l.includes('design:data') && l.includes('discarded'))) fail('a write to a slice the specialist does not own must be discarded and logged: ' + logs.filter((l) => l.includes('discard')).join(' | '))
+  eq('api slice: E9 -> E3, and the type that used E9 follows the rename', [out.contract.api.map((e) => e.id), out.contract.types[0].usedBy], [['E1', 'E2', 'E3'], ['E1', 'E3']])
+  eq('ui slice: a ref to a non-existent id is dropped and reported', [out.contract.ui[1].writes, out.danglingRefs.some((r) => r.from === 'R2' && r.ref === 'E99')], [[], true])
+  // validate -> repair -> validate
+  eq('validator, then one repair per owner, then validator again', calls.filter((c) => c.label.startsWith('validate:') || c.label.startsWith('repair:')).map((c) => c.label), ['validate:1', 'repair:api', 'repair:ui', 'validate:2'])
+  const v = calls.find((c) => c.label === 'validate:1')
+  if (v.prompt.includes('tradeoffs') || v.prompt.includes('adjacency table') || v.prompt.includes('one join')) fail('the validator sees decisions as data - never the specialist reasoning')
+  if (v.agentType !== 'harness:code-architect') fail('validator runs as a fresh code-architect by default')
+  const r = calls.find((c) => c.label === 'repair:api')
+  if (!r.prompt.includes('D4 requires a session') || r.prompt.includes('terminal condition')) fail('a repair gets only its own conflicts')
+  eq('repair applied: E2 now requires a session', out.contract.api[1].auth, 'session')
+  eq('statuses: repaired -> validated; unrepaired -> human', out.decisions.map((d) => d.status), ['validated', 'validated', 'human', 'validated'])
+  if (!(out.decisions[2].conflict || '').includes('terminal condition')) fail('an escalated decision carries the conflict text')
+  if (!out.humanDecisions.some((h) => h.question.includes('D3'))) fail('an escalated decision becomes a human decision')
+  eq('the synthesizer human decisions are kept too', out.humanDecisions.some((h) => h.question.includes('280 or 500')), true)
+  if (!out.gaps.some((g) => g.includes('criteria[1]'))) fail('an uncovered criterion becomes a gap: ' + JSON.stringify(out.gaps))
+  // synth + post-pass
+  eq('phase refs kept; an unknown ref is dropped and reported', [out.phases[1].refs, out.danglingRefs.some((r) => r.from === 'P2' && r.ref === 'Q9')], [['E1', 'E2', 'E3', 'D2'], true])
+  eq('layers', out.layers, [['P1'], ['P2'], ['P3']])
+  eq('counts', [out.run.counts.decisions, out.run.counts.contractItems, out.run.counts.specialists, out.run.counts.specialistsReturned, out.run.counts.conflictsFound, out.run.counts.repaired, out.run.counts.conflictsRemaining, out.run.counts.escalated], [4, 10, 4, 4, 2, 2, 1, 1])
+  eq('agent calls = lead + 4 specialists + 2 validators + 2 repairs + synth', out.run.counts.agentCalls, 1 + 4 + 2 + 2 + 1)
+  if (out.run.partial) fail('escalating to a human is a designed terminal, not a partial run: ' + out.run.errors.join(' | '))
+  if (out.plan !== 'GF PLAN') fail('plan missing')
+}
+console.log('run 6: greenfield partial paths and guards')
+{
+  const deadSpec = await run(GF_BASE, { lead: GF_LEAD, synth: GF_SYNTH, design: { ...GF_DESIGN, auth: undefined } })
+  isState('dead specialist', deadSpec.out)
+  if (!deadSpec.out.run.partial) fail('a dead specialist must mark the run partial')
+  if (!deadSpec.out.run.errors.some((e) => e.includes('auth'))) fail('errors must name the dead specialist: ' + deadSpec.out.run.errors.join(' | '))
+  eq('its decision goes to the human - a missing specialist is not a specialist with no decisions', [deadSpec.out.decisions[3].status, deadSpec.out.decisions[3].conflict], ['human', 'specialist returned nothing'])
+  const unanchored = await run(GF_BASE, { lead: GF_LEAD, synth: GF_SYNTH, design: { ...GF_DESIGN, data: { ...GF_DESIGN.data, decisions: [{ ...GF_DESIGN.data.decisions[0], cites: [], refs: [] }] } } })
+  eq('a recommendation that cites nothing is escalated, not trusted', [unanchored.out.decisions[0].status, unanchored.out.decisions[0].conflict], ['human', 'unanchored: cites no criterion and refs no contract item'])
+  const deadVal = await run(GF_BASE, { lead: GF_LEAD, synth: GF_SYNTH, validate: {} })
+  isState('dead validator', deadVal.out)
+  if (!deadVal.out.run.partial || !deadVal.out.run.errors.some((e) => e.includes('validator'))) fail('a dead validator must mark the run partial and be named: ' + deadVal.out.run.errors.join(' | '))
+  eq('without a verdict, decisions stay proposed - never promoted', deadVal.out.decisions.map((d) => d.status), ['proposed', 'proposed', 'proposed', 'proposed'])
+  eq('no repairs without a verdict', deadVal.calls.filter((c) => c.label.startsWith('repair:')).length, 0)
+  const noLead = await run(GF_BASE, { lead: null })
+  isState('dead greenfield lead', noLead.out)
+  eq('dead lead', [noLead.out.run.partial, noLead.out.run.errors, noLead.out.run.mode], [true, ['lead returned no decisions'], 'greenfield'])
+  const one = await run(GF_BASE, { lead: { ...GF_LEAD, decisions: [GF_LEAD.decisions[0]] } })
+  isState('one decision', one.out)
+  eq('one decision is not a graph', [one.out.run.partial, one.out.run.errors], [true, ['fewer than two decisions']])
+  try { await run({ ...GF_BASE, mode: 'nope' }); fail('bad mode should throw') } catch (e) { if (!String(e.message).includes('mode')) fail('bad mode: wrong error ' + e.message) }
+  const noRepair = await run({ ...GF_BASE, maxRepairRounds: 0 }, { lead: GF_LEAD, synth: GF_SYNTH })
+  isState('no repair rounds', noRepair.out)
+  eq('maxRepairRounds 0: one validation, conflicts escalate directly', [noRepair.calls.filter((c) => c.label.startsWith('validate:')).length, noRepair.out.decisions[2].status, noRepair.out.contract.api[1].auth], [1, 'human', 'none'])
+  if (!noRepair.out.humanDecisions.some((h) => h.question.includes('E2'))) fail('a contract conflict with no repair round goes to the human')
 }
 console.log(failures ? `SMOKE: FAILED (${failures})` : 'SMOKE: PASS')
 process.exitCode = failures ? 1 : 0
