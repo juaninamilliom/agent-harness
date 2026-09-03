@@ -7,6 +7,10 @@ run() { echo "== $1"; shift; if "$@"; then echo "   ok"; else echo "   FAIL"; FA
 
 run "manifests + schemas parse" jq -e . .claude-plugin/marketplace.json plugins/harness/.claude-plugin/plugin.json plugins/harness/schemas/graph-state.schema.json
 run "shell syntax"         bash -c 'for f in $(find . -name "*.sh" -not -path "./.git/*"); do bash -n "$f" || exit 1; done'
+# The Workflow tool's permission dialog refuses a script containing control characters
+# (anything below 0x20 except newline, or 0x7f) - they would be hidden in the approval
+# text. Observed live: a NUL written as a string separator killed a launch.
+run "workflow scripts have no control characters" bash -c 'for f in plugins/harness/workflows/*.js; do perl -ne "exit 1 if /[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/" "$f" || { echo "   control character in $f"; exit 1; }; done'
 run "plan-graph smoke"     node tests/plan-graph.smoke.mjs plugins/harness/workflows/plan-graph.js
 run "review-graph smoke"   node tests/review-graph.smoke.mjs plugins/harness/workflows/review-graph.js
 run "frozen rules"         plugins/harness/scripts/graph/check-frozen.sh plugins/harness

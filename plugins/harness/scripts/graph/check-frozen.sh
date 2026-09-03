@@ -37,6 +37,7 @@ check F1 'not seen the reasoning'         agents/finding-refuter.md
 check F1 'not seen the reasoning'         agents/claim-refuter.md
 check F1 'never sees the lens'            workflows/review-graph.js
 check F1 'never the investigator'         workflows/plan-graph.js
+check F1 'never the specialist'           workflows/plan-graph.js
 check F2 'NOT an anchor'                  agents/finding-refuter.md
 check F2 'NOT an anchor'                  agents/claim-refuter.md
 check F2 'NOT an anchor'                  agents/plan-investigator.md
@@ -52,6 +53,9 @@ check F9 'is the ANCHOR'                 agents/claim-refuter.md
 check F10 'is a fake edge'               workflows/plan-graph.js
 check F11 'not an investigator with no findings' workflows/plan-graph.js
 check F11 'Never count silence as agreement' workflows/plan-graph.js
+check F11 'not a specialist with no decisions' workflows/plan-graph.js
+check F13 'write to a slice it does not own is discarded' workflows/plan-graph.js
+check F13 'Anything you write to a slice you do not own is' workflows/plan-graph.js
 
 # The manifest must document every rule the checker enforces, and vice versa.
 declared=$(grep -cE '^## F[0-9]+ ' FROZEN.md 2>/dev/null || echo 0)
