@@ -121,8 +121,8 @@ const GF_DECISION_BRIEF = {
   properties: {
     id: { type: 'string', description: 'D1, D2, ...' },
     domain: { enum: GF_DOMAINS, description: 'the specialist that owns this decision' },
-    question: { type: 'string', description: 'the ONE design question a specialist can answer with options and a recommendation' },
-    why: { type: 'string', description: 'one sentence: what goes wrong in the plan if this is decided badly' },
+    question: { type: 'string', maxLength: 240, description: 'the ONE design question a specialist can answer with options and a recommendation - one sentence, under 240 characters' },
+    why: { type: 'string', maxLength: 200, description: 'one sentence: what goes wrong in the plan if this is decided badly' },
     cites: { type: 'array', items: { type: 'integer' }, description: 'indexes (from 0) into the acceptance criteria this decision serves' },
     dependsOn: { type: 'array', items: { type: 'string' }, description: 'decision ids this one cannot be answered without' },
   },
@@ -135,10 +135,13 @@ const skeletonItem = (extra) => ({
   required: ['id', ...Object.keys(extra), 'purpose'],
   additionalProperties: false,
 })
+// Property order matters more than it should: a long free-text parameter that comes
+// FIRST is where a malformed tool call swallows everything after it (observed live: the
+// lead closed `summary` with the wrong tag five times and `decisions` vanished into it).
+// The structured fields come first; the prose summary comes last.
 const GF_LEAD_SCHEMA = {
   type: 'object',
   properties: {
-    summary: { type: 'string', description: '2-3 sentences: what this brief forces you to decide, and how you split it' },
     decisions: { type: 'array', minItems: 2, maxItems: 12, items: GF_DECISION_BRIEF },
     contract: {
       type: 'object',
@@ -151,9 +154,10 @@ const GF_LEAD_SCHEMA = {
       },
       additionalProperties: false,
     },
-    notPartitioned: { type: 'array', items: { type: 'string' }, description: 'decisions you deliberately left out, and why' },
+    notPartitioned: { type: 'array', items: { type: 'string' }, description: 'decisions you deliberately left out, and why - one line each' },
+    summary: { type: 'string', maxLength: 600, description: 'LAST: 2-3 sentences on how you split it' },
   },
-  required: ['summary', 'decisions', 'contract'],
+  required: ['decisions', 'contract', 'summary'],
   additionalProperties: false,
 }
 
@@ -466,8 +470,15 @@ const stateBase = () => ({
   validations: [],
   repairs: [],
 })
-// Assemble a state from the base plus whatever this path produced; `run` merges.
-const finish = (over) => { const base = stateBase(); return { ...base, ...over, run: { ...base.run, ...(over.run || {}) } } }
+// Assemble a state from the base plus whatever this path produced; `run` merges, and
+// every node failure recorded by node() below lands in run.errors.
+const nodeFailures = []
+const finish = (over) => {
+  const base = stateBase()
+  const run = { ...base.run, ...(over.run || {}) }
+  run.errors = [...(run.errors || []), ...nodeFailures]
+  return { ...base, ...over, run }
+}
 // Drop undefined-valued keys so the state round-trips through JSON unchanged.
 const compact = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined))
 const leadOut = (l, overlaps) => ({ summary: String((l && l.summary) || ''), notPartitioned: (l && l.notPartitioned) || [], overlaps: overlaps || [] })
@@ -478,6 +489,18 @@ const briefsOut = (bs, inv) => bs.map((b, i) => ({
   coverage: inv && inv[i] && typeof inv[i].coverage === 'string' ? inv[i].coverage : null,
 }))
 const dedupeRefs = (rs) => { const seen = new Set(); return rs.filter((r) => { const k = `${r.from} ${r.ref}`; if (seen.has(k)) return false; seen.add(k); return true }) }
+// A node that THROWS - the tool layer gives up on structured output after its retry
+// cap, or a terminal API error - is a node that returned nothing. parallel() already
+// turns that into null; a bare await does not, and the whole run would die with no
+// state. So: record why, return null, and let the fan-in guards end the run visibly.
+const node = async (prompt, opts) => {
+  try { return await agent(prompt, opts) } catch (e) {
+    const why = `${opts && opts.label ? opts.label : 'node'} failed: ${String((e && e.message) || e).slice(0, 200)}`
+    nodeFailures.push(why)
+    log(`WARNING: ${why}`)
+    return null
+  }
+}
 
 // ===========================================================================
 // EXISTING MODE - Lead -> Investigate -> Reduce -> Verify. Returns the fact base.
@@ -492,7 +515,7 @@ async function investigate() {
   // -------------------------------------------------------------------------
 
   phase('Lead')
-  const lead = await agent(
+  const lead = await node(
     `You are the LEAD of a planning graph. You do not write the plan. You decide what must be TRUE ` +
       `about this codebase for a plan to be right, and you split that into 2-${MAX_BRIEFS} investigation ` +
       `briefs that other agents will run in parallel WITHOUT seeing each other or you.\n\n` +
@@ -769,7 +792,7 @@ async function design() {
   // -------------------------------------------------------------------------
 
   phase('Lead')
-  const gl = await agent(
+  const gl = await node(
     `You are the LEAD of a planning graph in GREENFIELD mode: there is no code to read. You do not ` +
       `design. You decide what must be DECIDED for a plan to be right, and you lay the naming ground ` +
       `the specialists will design against, in parallel, WITHOUT seeing each other or you.\n\n` +
@@ -778,16 +801,19 @@ async function design() {
       `constraints above are the stack.\n\n` +
       `## What you produce\n` +
       `1. decisions: the design decisions this brief FORCES - 2 to 12. Each is ONE question a specialist ` +
-      `can answer with options and a recommendation; tagged with the domain that owns it (data / api / ` +
-      `ui / auth / test / infra / other); citing the acceptance criteria indexes it serves; dependsOn ` +
-      `the decisions it cannot be answered without. PARTITION: two decisions must not be the same ` +
-      `question in different words. Fewer, sharper decisions beat many overlapping ones.\n` +
+      `can answer with options and a recommendation - one sentence, under 240 characters; the ` +
+      `specialist gets the brief too, so do not restate it - tagged with the domain that owns it (data / ` +
+      `api / ui / auth / test / infra / other); citing the acceptance criteria indexes it serves; ` +
+      `dependsOn the decisions it cannot be answered without; why in one sentence. PARTITION: two ` +
+      `decisions must not be the same question in different words. Fewer, sharper decisions beat many ` +
+      `overlapping ones.\n` +
       `2. contract: the SKELETON of the shared contract - ids and names only, no detail: api endpoints ` +
       `(E1.., method, path, purpose), data tables (T1.., name, purpose), ui routes (R1.., path, ` +
       `purpose), shared types (Y1.., name, purpose). This is the naming ground: every specialist ` +
       `references these by id; they may add items but cannot rename yours. Omit slices this application ` +
       `does not have (a CLI has no ui).\n` +
-      `3. notPartitioned: decisions you deliberately left out, and why.\n\n` +
+      `3. notPartitioned: decisions you deliberately left out, and why - one line each.\n` +
+      `4. summary, last: 2-3 sentences on how you split it.\n\n` +
       `Structured output only.`,
     { label: 'lead', phase: 'Lead', agentType: leadAgentType, schema: GF_LEAD_SCHEMA }
   )
@@ -1003,7 +1029,7 @@ async function design() {
   let repaired = 0
   const validateOnce = async () => {
     validatorCalls++
-    return agent(VALIDATE_PROMPT(), { label: `validate:${validatorCalls}`, phase: 'Validate', agentType: validatorAgentType, schema: CONSISTENCY_SCHEMA })
+    return node(VALIDATE_PROMPT(), { label: `validate:${validatorCalls}`, phase: 'Validate', agentType: validatorAgentType, schema: CONSISTENCY_SCHEMA })
   }
   phase('Validate')
   let verdict = await validateOnce()
@@ -1173,7 +1199,7 @@ if (inv) {
     `Structured output only.`
 }
 
-const synth = await agent(synthPrompt, { label: 'synthesize', phase: 'Synthesize', agentType: synthAgentType, schema: PLAN_SCHEMA })
+const synth = await node(synthPrompt, { label: 'synthesize', phase: 'Synthesize', agentType: synthAgentType, schema: PLAN_SCHEMA })
 
 if (!synth) {
   log('WARNING: the synthesize node returned nothing - the verified findings survive in the payload, but no plan was produced')
